@@ -1,0 +1,550 @@
+// RiseLocal data model — based on Build Spec v1.1 §12.
+// Location, StudentProfile, auth tables, SavedJob and AuditLog are filled in
+// where the spec elides them.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums ──────────────────────────────────────────────────────────────────
+
+enum Role {
+  STUDENT
+  EMPLOYER
+  COMMUNITY
+  ADMIN
+}
+
+enum UserStatus {
+  PENDING // awaiting email verification or guardian consent (13–15)
+  ACTIVE
+  SUSPENDED
+  BANNED
+}
+
+enum JobStatus {
+  DRAFT
+  PUBLISHED
+  PAUSED
+  FILLED
+  EXPIRED
+  ARCHIVED
+}
+
+enum JobSource {
+  EMPLOYER
+  COMMUNITY
+  AGENT
+}
+
+enum PayType {
+  HOURLY
+  FIXED
+  VOLUNTEER
+}
+
+enum AppStatus {
+  PENDING_GUARDIAN // held until a guardian approves (SAFE-3 / AP-2)
+  SENT
+  VIEWED
+  SHORTLISTED
+  HIRED
+  DECLINED
+  WITHDRAWN
+}
+
+enum ModStatus {
+  OPEN
+  APPROVED
+  REJECTED
+  ESCALATED
+}
+
+enum CrawlStatus {
+  PENDING // due (or resumable) — waiting for a cron execution to claim it
+  PROCESSING // claimed by an execution (lease in lockedBy/lockedAt)
+  COMPLETED // last run finished; next due at nextRunAt
+  FAILED // last attempt failed; retried at nextRunAt with backoff
+}
+
+enum CrawlItemStatus {
+  PENDING
+  DONE
+  FAILED
+}
+
+enum OutboxStatus {
+  PENDING // waiting to send (new, or scheduled for retry at nextAttemptAt)
+  PROCESSING // claimed by a sender (lease in lockedBy/lockedAt)
+  SENT
+  FAILED // permanently failed (max attempts or non-retryable error)
+}
+
+enum CronRunStatus {
+  RUNNING
+  SUCCEEDED
+  FAILED
+  SKIPPED // another execution of the same task held the lock
+}
+
+enum VerificationStatus {
+  UNVERIFIED
+  PENDING
+  VERIFIED
+  DENIED
+}
+
+// ─── Accounts ───────────────────────────────────────────────────────────────
+
+model User {
+  id            String     @id @default(cuid())
+  role          Role
+  email         String     @unique
+  emailVerified DateTime?
+  passwordHash  String?
+  displayName   String
+  image         String?
+  dateOfBirth   DateTime? // drives age gate; required for STUDENT at signup
+  isMinor       Boolean    @default(false)
+  status        UserStatus @default(PENDING)
+
+  guardian       Guardian?
+  studentProfile StudentProfile?
+  employerOrg    EmployerOrg?    @relation(fields: [orgId], references: [id])
+  orgId          String?
+
+  jobs          Job[]          @relation("PostedBy")
+  applications  Application[]
+  watches       Watch[]
+  savedJobs     SavedJob[]
+  notifications Notification[]
+  reports       Report[]       @relation("Reporter")
+  certsReceived Certificate[]  @relation("CertStudent")
+  certsIssued   Certificate[]  @relation("CertIssuer")
+  auditLogs     AuditLog[]     @relation("Actor")
+
+  accounts Account[]
+  sessions Session[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([role, status])
+}
+
+model Guardian {
+  id              String    @id @default(cuid())
+  student         User      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  studentId       String    @unique
+  email           String
+  consentAt       DateTime?
+  requireApproval Boolean   @default(false) // gate applications for 13–15
+  createdAt       DateTime  @default(now())
+}
+
+model StudentProfile {
+  id           String   @id @default(cuid())
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId       String   @unique
+  firstName    String
+  areaLabel    String? // approximate area only (neighborhood / ZIP)
+  lat          Float? // coarsened
+  lng          Float?
+  availability String[] // e.g. ["weekends","after-school"]
+  skills       String[]
+  bio          String?
+  updatedAt    DateTime @updatedAt
+}
+
+model EmployerOrg {
+  id                 String             @id @default(cuid())
+  name               String
+  address            String? // private — never shown to students
+  website            String?
+  verified           Boolean            @default(false)
+  verificationStatus VerificationStatus @default(UNVERIFIED)
+  locations          Location[]
+  members            User[]
+  jobs               Job[]
+  createdAt          DateTime           @default(now())
+}
+
+model Location {
+  id        String      @id @default(cuid())
+  org       EmployerOrg @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  orgId     String
+  name      String
+  areaLabel String
+  lat       Float?
+  lng       Float?
+  jobs      Job[]
+}
+
+// ─── Jobs & applications ────────────────────────────────────────────────────
+
+model Job {
+  id          String    @id @default(cuid())
+  source      JobSource
+  status      JobStatus @default(DRAFT)
+  title       String
+  description String
+  category    String
+  tags        String[]
+  payType     PayType
+  payMin      Int? // cents
+  payMax      Int? // cents
+  minAge      Int       @default(14)
+  schedule    String? // weekends|after-school|one-time|recurring|seasonal
+  remote      Boolean   @default(false)
+  positions   Int       @default(1)
+  startDate   DateTime?
+  areaLabel   String // approximate — never a precise address
+  lat         Float? // coarsened for distance filter
+  lng         Float?
+
+  postedBy   User         @relation("PostedBy", fields: [postedById], references: [id])
+  postedById String
+  org        EmployerOrg? @relation(fields: [orgId], references: [id])
+  orgId      String?
+  location   Location?    @relation(fields: [locationId], references: [id])
+  locationId String?
+
+  suitability    Float? // 0–1 from Scout classifier / safety filter
+  safetyFlags    String[] // e.g. ["late_hours"]
+  moderationHold Boolean  @default(false)
+  views          Int      @default(0)
+
+  agentDraft   AgentDraft? // provenance when source = AGENT
+  applications Application[]
+  savedBy      SavedJob[]
+  certificates Certificate[]
+
+  publishedAt DateTime?
+  expiresAt   DateTime?
+  archivedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Maintained by a trigger (see prisma/migrations/*_search) — read via raw SQL only.
+  searchVector Unsupported("tsvector")? @map("search_vector")
+
+  @@index([status, category])
+  @@index([postedById])
+  @@index([orgId])
+  @@index([searchVector], type: Gin, map: "Job_search_vector_idx")
+  @@index([title(ops: raw("gin_trgm_ops"))], type: Gin, map: "Job_title_trgm_idx")
+}
+
+model Application {
+  id                 String    @id @default(cuid())
+  job                Job       @relation(fields: [jobId], references: [id])
+  jobId              String
+  student            User      @relation(fields: [studentId], references: [id])
+  studentId          String
+  status             AppStatus @default(SENT)
+  note               String?
+  guardianApprovedAt DateTime?
+  // Completion (GIG-8 / CERT-1): both sides must confirm before a certificate.
+  studentConfirmedAt DateTime?
+  posterConfirmedAt  DateTime?
+  hoursLogged        Float?
+  posterRating       Int? // student rates poster
+  studentRating      Int? // poster rates student
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@unique([jobId, studentId])
+  @@index([studentId])
+}
+
+model SavedJob {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  job       Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  jobId     String
+  createdAt DateTime @default(now())
+
+  @@unique([userId, jobId])
+}
+
+model Watch {
+  id            String    @id @default(cuid())
+  student       User      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  studentId     String
+  name          String
+  filters       Json // serialized filter/search query
+  channels      String[] // ["in_app","email"]
+  frequency     String    @default("instant") // instant | daily
+  active        Boolean   @default(true)
+  lastMatchedAt DateTime?
+  createdAt     DateTime  @default(now())
+
+  @@index([active])
+}
+
+// ─── Scout agent ────────────────────────────────────────────────────────────
+
+model AgentSource {
+  id        String     @id @default(cuid())
+  name      String
+  type      String // html | rss | json_api
+  url       String
+  frequency String // cron-ish cadence, e.g. "every 6h"
+  hints     Json? // selectors / field map
+  enabled   Boolean    @default(true)
+  lastRunAt DateTime?
+  runs      AgentRun[]
+  createdAt DateTime   @default(now())
+
+  // Crawl checkpoint state (see src/lib/agent/crawler.ts). A source is claimed by one
+  // cron execution at a time (lockedBy/lockedAt lease); currentRunId points at the
+  // in-progress run so the next execution resumes it instead of starting over.
+  crawlStatus   CrawlStatus @default(PENDING)
+  nextRunAt     DateTime? // null = due now
+  currentRunId  String?
+  lockedBy      String?
+  lockedAt      DateTime?
+  crawlAttempts Int         @default(0) // consecutive failed attempts, reset on success
+  lastError     String?
+
+  @@index([enabled, crawlStatus, nextRunAt])
+}
+
+model AgentRun {
+  id           String           @id @default(cuid())
+  source       AgentSource      @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  sourceId     String
+  status       String           @default("queued") // queued | running | succeeded | failed
+  startedAt    DateTime         @default(now())
+  finishedAt   DateTime?
+  found        Int              @default(0)
+  drafted      Int              @default(0)
+  rejected     Int              @default(0)
+  rejections   Json? // [{ url, reason }]
+  model        String?
+  promptVer    String?
+  temperature  Float?
+  tokens       Int?
+  costUsd      Float?
+  error        String?
+  discoveredAt DateTime? // set once the source's items are checkpointed into AgentCrawlItem
+  totalItems   Int?
+  drafts       AgentDraft[]
+  items        AgentCrawlItem[]
+}
+
+// One discovered item of a run — the crawl checkpoint. Items are processed in batches;
+// each is marked DONE in the same transaction that files its draft, so a resumed run
+// skips finished work. Per-item counts are summed into AgentRun on completion.
+model AgentCrawlItem {
+  id          String          @id @default(cuid())
+  run         AgentRun        @relation(fields: [runId], references: [id], onDelete: Cascade)
+  runId       String
+  position    Int
+  url         String
+  payload     Json // RawItem snapshot from discover()
+  status      CrawlItemStatus @default(PENDING)
+  attempts    Int             @default(0)
+  found       Int             @default(0)
+  drafted     Int             @default(0)
+  rejected    Int             @default(0)
+  rejections  Json?
+  tokens      Int             @default(0)
+  costUsd     Float           @default(0)
+  error       String?
+  processedAt DateTime?
+
+  @@unique([runId, position])
+  @@index([runId, status])
+}
+
+model AgentDraft {
+  id          String   @id @default(cuid())
+  run         AgentRun @relation(fields: [runId], references: [id])
+  runId       String
+  job         Job?     @relation(fields: [jobId], references: [id])
+  jobId       String?  @unique
+  orgId       String? // matched employer, null → admin queue
+  sourceUrl   String
+  rawPayload  Json // extracted fields + per-field confidence
+  confidence  Float?
+  fingerprint String   @unique // dedupe key
+  reviewState String   @default("pending") // pending|approved|dismissed|quarantined
+  lastSeenAt  DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  @@index([orgId, reviewState])
+}
+
+// ─── Trust & safety ─────────────────────────────────────────────────────────
+
+model Report {
+  id         String    @id @default(cuid())
+  reporter   User?     @relation("Reporter", fields: [reporterId], references: [id])
+  reporterId String?
+  targetType String // job | gig | user | certificate
+  targetId   String
+  reason     String // reason code
+  details    String?
+  status     ModStatus @default(OPEN)
+  resolution String?
+  createdAt  DateTime  @default(now())
+  resolvedAt DateTime?
+
+  @@index([status, createdAt])
+}
+
+model Certificate {
+  id            String   @id @default(cuid())
+  code          String   @unique // public verify code (short, unguessable)
+  kind          String   @default("work") // work | volunteer
+  status        String   @default("active") // active | revoked
+  job           Job      @relation(fields: [jobId], references: [id])
+  jobId         String
+  student       User     @relation("CertStudent", fields: [studentId], references: [id])
+  studentId     String
+  issuer        User     @relation("CertIssuer", fields: [issuerId], references: [id])
+  issuerId      String
+  roleTitle     String
+  category      String
+  startDate     DateTime
+  endDate       DateTime
+  totalHours    Float?
+  sessions      Int?
+  skills        String[]
+  note          String? // short reference from issuer
+  rating        Int?
+  visibility    String   @default("link") // private | link | public
+  signature     String // signed hash tying a PDF back to this record
+  revokedReason String?
+  issuedAt      DateTime @default(now())
+
+  @@unique([jobId, studentId])
+  @@index([studentId, status])
+}
+
+model Notification {
+  id        String    @id @default(cuid())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  kind      String // watch_match | app_update | system
+  payload   Json
+  dedupeKey String?   @unique // prevents duplicate watch alerts
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, readAt])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actor      User?    @relation("Actor", fields: [actorId], references: [id])
+  actorId    String?
+  action     String // e.g. cert.issue, cert.revoke, application.view, report.resolve
+  targetType String
+  targetId   String
+  meta       Json?
+  createdAt  DateTime @default(now())
+
+  @@index([targetType, targetId])
+}
+
+// ─── Auth.js (NextAuth) adapter tables ──────────────────────────────────────
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ─── Reliability (Postgres-only background infrastructure) ──────────────────
+
+// Transactional email outbox. Rows are written in the same transaction as the change that
+// triggers them, then delivered by src/lib/outbox.ts with retries and exponential backoff.
+model EmailOutbox {
+  id                String       @id @default(cuid())
+  idempotencyKey    String       @unique // duplicate enqueues are ignored
+  to                String
+  subject           String
+  text              String
+  status            OutboxStatus @default(PENDING)
+  attempts          Int          @default(0)
+  maxAttempts       Int          @default(5)
+  nextAttemptAt     DateTime     @default(now())
+  lockedBy          String?
+  lockedAt          DateTime?
+  lastError         String?
+  providerMessageId String?
+  sentAt            DateTime?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  @@index([status, nextAttemptAt])
+}
+
+// Shared fixed-window rate limit counters (src/lib/rate-limit.ts). The key is a hash —
+// no raw IPs or emails are stored.
+model RateLimitBucket {
+  key     String   @id
+  count   Int
+  resetAt DateTime
+
+  @@index([resetAt])
+}
+
+// One row per cron invocation (src/lib/cron.ts).
+model CronRun {
+  id         String        @id @default(cuid())
+  task       String
+  status     CronRunStatus
+  attempt    Int           @default(1) // >1 when re-run by the retry-failed task
+  startedAt  DateTime      @default(now())
+  finishedAt DateTime?
+  durationMs Int?
+  result     Json?
+  error      String?
+
+  @@index([task, startedAt])
+}
+
+// Lease that keeps executions of the same cron task from overlapping. A crashed run's
+// lease expires on its own (lockedUntil), so the next execution can take over.
+model CronLock {
+  task        String   @id
+  runId       String
+  lockedUntil DateTime
+}

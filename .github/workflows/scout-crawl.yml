@@ -1,0 +1,53 @@
+# Scheduled Scout group crawl. Runs the checkpointed crawler (scripts/crawl.ts) on a GitHub
+# runner, so a crawl isn't capped by Vercel's 300-second function limit. Unfinished sources
+# resume on the next run. Notifications are not sent from here: Vercel delivers them right
+# away through the Postgres outbox.
+name: Scout crawl
+
+on:
+  schedule:
+    - cron: "17 * * * *" # hourly, off the top of the hour (GitHub delays :00 runs the most)
+  workflow_dispatch:
+    inputs:
+      budget_minutes:
+        description: "Crawl budget in minutes (1–300)"
+        required: false
+        default: "25"
+
+# Never run two crawls at once. The Postgres lock (CronLock) enforces this too, across
+# GitHub and any manual /api/cron/agent-schedule call.
+concurrency:
+  group: scout-crawl
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  crawl:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35 # above the default 25-minute budget, so the run can checkpoint and exit
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npx prisma generate
+
+      - name: Crawl due sources
+        run: npm run crawl
+        env:
+          # Inputs go through env (not ${{ }} inside the script) to avoid shell injection;
+          # the script validates and clamps the value.
+          CRAWL_BUDGET_MINUTES: ${{ inputs.budget_minutes || '25' }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+          LLM_MODEL: ${{ vars.LLM_MODEL }}
+          AGENT_PROMPT_VERSION: ${{ vars.AGENT_PROMPT_VERSION || 'extract-v1' }}
+          SUITABILITY_REJECT_BELOW: ${{ vars.SUITABILITY_REJECT_BELOW || '0.65' }}
+          # No NODE_ENV=production: env() would then demand app secrets (TOKEN_SECRET, …) the crawler never uses.
