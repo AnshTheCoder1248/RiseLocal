@@ -5,7 +5,12 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { verifyPassword } from "./password";
+import { cookies } from "next/headers";
 import { checkRateLimit, clientIp, LIMITS } from "@/lib/rate-limit";
+import { createToken } from "@/lib/tokens";
+
+export const GOOGLE_SIGNUP_COOKIE = "rl_google_signup";
+const GOOGLE_SIGNUP_TTL_S = 30 * 60;
 import type { Role, UserStatus } from "@/generated/prisma/client";
 
 declare module "next-auth" {
@@ -42,16 +47,35 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         return { id: user.id, email: user.email, name: user.displayName };
       },
     }),
-    // Google sign-in links to an existing account by verified email. New accounts must go
-    // through POST /api/auth/signup so role + date of birth (age gate) are captured.
+    // Google sign-in links to an existing account by verified email. A new Google user is
+    // sent to /signup/google to give role + date of birth (age gate) before any row is created.
     Google({ allowDangerousEmailAccountLinking: true }),
   ],
   callbacks: {
-    async signIn({ user, account }) {
+    async signIn({ user, account, profile }) {
       if (account?.provider !== "google") return true;
-      if (!user.email) return false;
-      const existing = await db.user.findUnique({ where: { email: user.email.toLowerCase() } });
-      return !!existing && existing.status !== "BANNED" ? true : "/signup?reason=no-account";
+      if (!user.email || profile?.email_verified !== true) return false;
+      const email = user.email.toLowerCase();
+      const existing = await db.user.findUnique({ where: { email } });
+      if (existing) return existing.status !== "BANNED";
+
+      // New user: hold the verified identity in a short-lived signed cookie, store nothing yet.
+      const token = createToken({
+        kind: "google-signup",
+        email,
+        name: user.name ?? email.split("@")[0],
+        providerAccountId: account.providerAccountId,
+        type: account.type,
+        exp: Date.now() + GOOGLE_SIGNUP_TTL_S * 1000,
+      });
+      (await cookies()).set(GOOGLE_SIGNUP_COOKIE, token, {
+        httpOnly: true,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+        path: "/",
+        maxAge: GOOGLE_SIGNUP_TTL_S,
+      });
+      return "/signup/google";
     },
     async jwt({ token, user }) {
       if (user?.email) {
