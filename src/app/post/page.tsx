@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import type { Metadata } from "next";
@@ -52,13 +53,8 @@ async function Gate() {
       </Notice>
     );
   }
-  if (user.role === "STUDENT") {
-    return (
-      <Notice title="Gigs are posted by adults" body="Student accounts can browse and apply to gigs, but posting is for community members 18+.">
-        <Link href="/jobs" className={buttonVariants()}>Browse jobs</Link>
-      </Notice>
-    );
-  }
+  // Posting is for adults only (18+); students and any minor go back to the board.
+  if (user.role === "STUDENT" || user.isMinor) redirect("/jobs");
   if (user.role === "EMPLOYER") {
     return <Notice title="Business posting is coming soon" body="This page is for neighborhood gigs. A posting page for businesses is on the way." />;
   }

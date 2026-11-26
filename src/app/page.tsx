@@ -1,7 +1,11 @@
 import Link from "next/link";
+import { connection } from "next/server";
+import { Suspense } from "react";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { getCurrentUser } from "@/lib/auth/session";
 
 const pillars = [
   { title: "Find work nearby", body: "Part-time jobs and neighborhood gigs in one board, filtered by pay, distance, schedule and age." },
@@ -21,14 +25,10 @@ export default function Home() {
           RiseLocal brings together real openings found by our Scout agent, listings from local businesses, and gigs
           from neighbors — tutoring, lawn mowing, snow removal and more.
         </p>
-        <div className="flex flex-wrap gap-3">
-          <Link href="/jobs" className={buttonVariants({ size: "lg" })}>Browse jobs</Link>
-          <Link href="/signup" className={buttonVariants({ size: "lg", variant: "outline" })}>Create an account</Link>
-        </div>
-        <p className="text-sm text-muted-foreground">
-          Need a hand around the house?{" "}
-          <Link href="/post" className="text-foreground underline underline-offset-4">Post a gig</Link> for local teens.
-        </p>
+        {/* Depends on who's signed in, so it streams in; the rest of the page is static. */}
+        <Suspense fallback={<Skeleton className="h-9 w-64" />}>
+          <Actions />
+        </Suspense>
       </section>
 
       <section className="grid gap-4 sm:grid-cols-3">
@@ -44,4 +44,29 @@ export default function Home() {
       </section>
     </main>
   );
+}
+
+/** Only the actions the viewer can actually take: sign-up for visitors, posting for adult community members. */
+async function Actions() {
+  await connection();
+  const user = await getCurrentUser();
+  const browse = <Link href="/jobs" className={buttonVariants({ size: "lg" })}>Browse jobs</Link>;
+
+  if (!user) {
+    return (
+      <div className="flex flex-wrap gap-3">
+        {browse}
+        <Link href="/signup" className={buttonVariants({ size: "lg", variant: "outline" })}>Create an account</Link>
+      </div>
+    );
+  }
+  if (user.role === "COMMUNITY" && !user.isMinor) {
+    return (
+      <div className="flex flex-wrap gap-3">
+        <Link href="/post" className={buttonVariants({ size: "lg" })}>Post a gig</Link>
+        <Link href="/jobs" className={buttonVariants({ size: "lg", variant: "outline" })}>Browse jobs</Link>
+      </div>
+    );
+  }
+  return <div className="flex flex-wrap gap-3">{browse}</div>;
 }
