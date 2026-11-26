@@ -20,11 +20,8 @@ const NAV: Record<Role, NavItem[]> = {
     PROFILE,
   ],
   EMPLOYER: [{ href: "/jobs", label: "Browse jobs", icon: "search" }, PROFILE],
-  ADMIN: [
-    { href: "/jobs", label: "Browse jobs", icon: "search" },
-    { href: "/review", label: "Review jobs", icon: "review" },
-    PROFILE,
-  ],
+  // Admins moderate rather than browse: the board itself redirects them to /review.
+  ADMIN: [{ href: "/review", label: "Review jobs", icon: "review" }, PROFILE],
 };
 
 export function AppSidebar() {

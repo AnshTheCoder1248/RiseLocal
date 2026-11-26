@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
@@ -51,6 +52,8 @@ async function Board({ searchParams }: { searchParams: Promise<SearchParams> }) 
   const query = parsed.success ? parsed.data : boardQuerySchema.parse({});
 
   const viewer = await getCurrentUser();
+  // Admins moderate jobs on /review; the public board isn't part of their portal.
+  if (viewer?.role === "ADMIN") redirect("/review");
   const age = viewer?.role === "STUDENT" && viewer.dateOfBirth ? ageOn(viewer.dateOfBirth) : undefined;
   const result = await searchBoard(query, { age });
   const items = withEligibility(result.items, age);
