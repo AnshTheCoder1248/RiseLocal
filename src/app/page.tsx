@@ -25,6 +25,10 @@ export default function Home() {
           <Link href="/jobs" className={buttonVariants({ size: "lg" })}>Browse jobs</Link>
           <Link href="/signup" className={buttonVariants({ size: "lg", variant: "outline" })}>Create an account</Link>
         </div>
+        <p className="text-sm text-muted-foreground">
+          Need a hand around the house?{" "}
+          <Link href="/post" className="text-foreground underline underline-offset-4">Post a gig</Link> for local teens.
+        </p>
       </section>
 
       <section className="grid gap-4 sm:grid-cols-3">
