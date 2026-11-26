@@ -53,8 +53,7 @@ async function Actions() {
   if (await getCurrentUser()) redirect("/jobs");
   return (
     <div className="flex flex-wrap gap-3">
-      <Link href="/jobs" className={buttonVariants({ size: "lg" })}>Browse jobs</Link>
-      <Link href="/signup" className={buttonVariants({ size: "lg", variant: "outline" })}>Create an account</Link>
+      <Link href="/signup" className={buttonVariants({ size: "lg" })}>Create an account</Link>
     </div>
   );
 }
