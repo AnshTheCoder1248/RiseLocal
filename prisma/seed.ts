@@ -158,29 +158,6 @@ async function main() {
     data: { userId: maya.id, kind: "watch_match", payload: { watchName: "Dog walking < 2 mi, $15+", jobId: dogWalker.id, title: dogWalker.title, pay: "$18/hr", area: dogWalker.areaLabel } },
   });
 
-  // Scout: a source, a run, and a pending draft in Green Market's Suggested tab.
-  const source = await db.agentSource.create({
-    data: { name: "Green Market careers", type: "html", url: "https://example.com/careers", frequency: "every 6h", hints: { orgId: greenMarket.id }, enabled: true,
-      // Seeded as already crawled, so the dev cron doesn't hit the placeholder URL right away.
-      crawlStatus: "COMPLETED", lastRunAt: new Date(), nextRunAt: new Date(Date.now() + 6 * 36e5) },
-  });
-  const run = await db.agentRun.create({
-    data: { sourceId: source.id, status: "succeeded", finishedAt: daysAgo(0), found: 3, drafted: 2, rejected: 1, model: "seed", promptVer: "extract-v1", costUsd: 0.04, rejections: [{ url: "https://example.com/careers#barback", reason: "alcohol" }] },
-  });
-  await db.agentDraft.create({
-    data: {
-      run: { connect: { id: run.id } }, orgId: greenMarket.id, sourceUrl: "https://example.com/careers#stock", confidence: 0.92, fingerprint: "seed-stock-clerk",
-      rawPayload: { title: "Weekend stock clerk", employer: "Green Market", confidence: { title: 0.98, pay: 0.9 } },
-      job: {
-        create: {
-          source: "AGENT", status: "DRAFT", title: "Weekend stock clerk", category: "retail", description: "Restock shelves and help keep aisles tidy on weekends.",
-          payType: "HOURLY", payMin: 1500, payMax: 1500, minAge: 16, schedule: "weekends", areaLabel: "Maple Grove · 55311",
-          postedById: rosa.id, orgId: greenMarket.id, suitability: 0.92,
-        },
-      },
-    },
-  });
-
   await db.report.create({ data: { reporterId: jordan.id, targetType: "user", targetId: alex.id, reason: "pii_solicitation", details: "Asked me to text them." } });
 
   console.info(`Seeded. Sign in with any *@riselocal.local account (password in prisma/seed.ts). Admin: ${admin.email}`);
