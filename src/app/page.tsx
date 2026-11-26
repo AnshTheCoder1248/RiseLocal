@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -46,27 +47,14 @@ export default function Home() {
   );
 }
 
-/** Only the actions the viewer can actually take: sign-up for visitors, posting for adult community members. */
+/** Visitors only: signed-in users are sent to the job board (see src/proxy.ts; this is the fallback). */
 async function Actions() {
   await connection();
-  const user = await getCurrentUser();
-  const browse = <Link href="/jobs" className={buttonVariants({ size: "lg" })}>Browse jobs</Link>;
-
-  if (!user) {
-    return (
-      <div className="flex flex-wrap gap-3">
-        {browse}
-        <Link href="/signup" className={buttonVariants({ size: "lg", variant: "outline" })}>Create an account</Link>
-      </div>
-    );
-  }
-  if (user.role === "COMMUNITY" && !user.isMinor) {
-    return (
-      <div className="flex flex-wrap gap-3">
-        <Link href="/post" className={buttonVariants({ size: "lg" })}>Post a gig</Link>
-        <Link href="/jobs" className={buttonVariants({ size: "lg", variant: "outline" })}>Browse jobs</Link>
-      </div>
-    );
-  }
-  return <div className="flex flex-wrap gap-3">{browse}</div>;
+  if (await getCurrentUser()) redirect("/jobs");
+  return (
+    <div className="flex flex-wrap gap-3">
+      <Link href="/jobs" className={buttonVariants({ size: "lg" })}>Browse jobs</Link>
+      <Link href="/signup" className={buttonVariants({ size: "lg", variant: "outline" })}>Create an account</Link>
+    </div>
+  );
 }

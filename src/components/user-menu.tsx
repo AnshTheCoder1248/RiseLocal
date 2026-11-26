@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -50,9 +49,6 @@ export function UserMenu({ name, email, image, role }: { name: string; email: st
             </span>
           </DropdownMenuLabel>
         </DropdownMenuGroup>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem render={<Link href="/jobs" />}>Browse jobs</DropdownMenuItem>
-        {role === "COMMUNITY" && <DropdownMenuItem render={<Link href="/post" />}>Post a gig</DropdownMenuItem>}
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => logout()}>Sign out</DropdownMenuItem>
       </DropdownMenuContent>
