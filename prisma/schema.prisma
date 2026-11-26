@@ -115,6 +115,7 @@ model User {
 
   guardian       Guardian?
   studentProfile StudentProfile?
+  resume         Resume?
   employerOrg    EmployerOrg?    @relation(fields: [orgId], references: [id])
   orgId          String?
 
@@ -159,6 +160,20 @@ model StudentProfile {
   skills       String[]
   bio          String?
   updatedAt    DateTime @updatedAt
+}
+
+// A student's uploaded resume — one per student, replaced on re-upload. Stored in
+// Postgres (capped at 2 MB, see src/lib/resume.ts) and only served back to its owner.
+model Resume {
+  id          String   @id @default(cuid())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String   @unique
+  fileName    String
+  contentType String
+  size        Int // bytes
+  data        Bytes
+  uploadedAt  DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model EmployerOrg {

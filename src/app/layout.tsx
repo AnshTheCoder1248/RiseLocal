@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { AppSidebar } from "@/components/app-sidebar";
 import { SiteHeader } from "@/components/site-header";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
@@ -24,7 +25,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">
         <SiteHeader />
-        {children}
+        <div className="flex flex-1 flex-col md:flex-row">
+          <AppSidebar />
+          <div className="flex min-w-0 flex-1 flex-col">{children}</div>
+        </div>
         <Toaster />
       </body>
     </html>

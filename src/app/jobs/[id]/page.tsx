@@ -13,6 +13,7 @@ import { publicJobSelect } from "@/lib/jobs/search";
 import { publicJobWhere } from "@/lib/safety/gate";
 import { formatPay, labelize, postedAgo } from "@/lib/jobs/format";
 import { ApplyForm } from "./apply-form";
+import { SaveJobButton } from "./save-button";
 
 export default function JobPage({ params }: PageProps<"/jobs/[id]">) {
   return (
@@ -33,9 +34,12 @@ async function JobDetail({ params }: { params: Promise<{ id: string }> }) {
 
   const viewer = await getCurrentUser();
   const age = viewer?.role === "STUDENT" && viewer.dateOfBirth ? ageOn(viewer.dateOfBirth) : undefined;
-  const existing = viewer?.role === "STUDENT"
-    ? await db.application.findFirst({ where: { jobId: id, studentId: viewer.id }, select: { status: true } })
-    : null;
+  const [existing, saved] = viewer?.role === "STUDENT"
+    ? await Promise.all([
+        db.application.findFirst({ where: { jobId: id, studentId: viewer.id }, select: { status: true } }),
+        db.savedJob.count({ where: { jobId: id, userId: viewer.id } }),
+      ])
+    : [null, 0];
 
   const details = [
     ["Pay", formatPay(job)],
@@ -50,7 +54,10 @@ async function JobDetail({ params }: { params: Promise<{ id: string }> }) {
   return (
     <>
       <header className="flex flex-col gap-3">
-        <h1 className="text-3xl font-semibold tracking-tight">{job.title}</h1>
+        <div className="flex items-start gap-3">
+          <h1 className="flex-1 text-3xl font-semibold tracking-tight">{job.title}</h1>
+          {viewer?.role === "STUDENT" && <SaveJobButton jobId={job.id} initialSaved={saved > 0} />}
+        </div>
         <p className="text-muted-foreground">
           {job.org?.name ?? job.postedBy.displayName}
           {job.org?.verified && " · Verified business"}

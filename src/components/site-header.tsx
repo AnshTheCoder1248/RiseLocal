@@ -11,9 +11,6 @@ export function SiteHeader() {
     <header className="border-b">
       <div className="mx-auto flex h-14 w-full max-w-5xl items-center gap-4 px-4 sm:px-6">
         <Link href="/" className="font-semibold tracking-tight">RiseLocal</Link>
-        <nav className="flex items-center gap-4 text-sm text-muted-foreground">
-          <Link href="/jobs" className="hover:text-foreground">Browse jobs</Link>
-        </nav>
         <div className="ml-auto flex items-center gap-2">
           {/* Reads the session, so it streams in; the rest of the header is static. */}
           <Suspense fallback={<Skeleton className="size-8 rounded-full" />}>
