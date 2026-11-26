@@ -1,0 +1,123 @@
+{
+  "_about": "Test feed for the Scout crawler (json_api source, hints.itemsPath = \"jobs\"). Fictional listings; pay is in cents. Items 8–10 are meant to be rejected or quarantined.",
+  "jobs": [
+    {
+      "url": "https://github.com/AnshTheCoder1248/RiseLocal/blob/development/scripts/fixtures/scout-test-feed.json#weekend-cafe-helper",
+      "title": "Weekend café helper",
+      "employer": "Bean Scene Café",
+      "description": "Help bus tables, restock pastries and keep the counter tidy on Saturday and Sunday mornings. Friendly team, training provided, free drink every shift.",
+      "category": "food-service",
+      "payType": "HOURLY",
+      "payMin": 1500,
+      "payMax": 1600,
+      "schedule": "weekends",
+      "areaLabel": "Maple Grove · 55311",
+      "minAge": 15
+    },
+    {
+      "url": "https://github.com/AnshTheCoder1248/RiseLocal/blob/development/scripts/fixtures/scout-test-feed.json#garden-center-helper",
+      "title": "Garden center seasonal helper",
+      "employer": "Green Market",
+      "description": "Water plants, arrange flower displays and help customers carry purchases to their cars during our spring rush. Outdoor work, sunscreen recommended.",
+      "category": "retail",
+      "payType": "HOURLY",
+      "payMin": 1550,
+      "payMax": 1550,
+      "schedule": "seasonal",
+      "areaLabel": "Maple Grove · 55311",
+      "minAge": 16
+    },
+    {
+      "url": "https://github.com/AnshTheCoder1248/RiseLocal/blob/development/scripts/fixtures/scout-test-feed.json#youth-soccer-referee",
+      "title": "Youth soccer assistant referee",
+      "employer": "Plymouth Youth Soccer Club",
+      "description": "Run the sidelines as an assistant referee for under-8 and under-10 games on Saturday mornings. Free certification course before the season starts.",
+      "category": "other",
+      "payType": "FIXED",
+      "payMin": 2500,
+      "payMax": 2500,
+      "schedule": "weekends",
+      "areaLabel": "Plymouth · 55441",
+      "minAge": 14
+    },
+    {
+      "url": "https://github.com/AnshTheCoder1248/RiseLocal/blob/development/scripts/fixtures/scout-test-feed.json#reading-buddy",
+      "title": "Summer reading buddy",
+      "employer": "Maple Grove Community Library",
+      "description": "Read with kids aged 5 to 8 during the library's summer reading program. Two afternoons a week, counts toward school service hours.",
+      "category": "tutoring",
+      "payType": "VOLUNTEER",
+      "schedule": "seasonal",
+      "areaLabel": "Maple Grove · 55311",
+      "minAge": 13
+    },
+    {
+      "url": "https://github.com/AnshTheCoder1248/RiseLocal/blob/development/scripts/fixtures/scout-test-feed.json#ice-cream-scooper",
+      "title": "Ice cream scooper",
+      "employer": "Scoops on Main",
+      "description": "Scoop cones, make sundaes and keep the shop clean on summer afternoons and early evenings. Must be friendly and comfortable handling a register.",
+      "category": "food-service",
+      "payType": "HOURLY",
+      "payMin": 1400,
+      "payMax": 1500,
+      "schedule": "after-school",
+      "areaLabel": "Plymouth · 55441",
+      "minAge": 15
+    },
+    {
+      "url": "https://github.com/AnshTheCoder1248/RiseLocal/blob/development/scripts/fixtures/scout-test-feed.json#car-wash-attendant",
+      "title": "Car wash attendant",
+      "employer": "Sparkle Car Wash",
+      "description": "Guide cars onto the track, pre-rinse wheels and towel-dry vehicles at the exit. Weekend shifts, tips shared by the whole crew.",
+      "category": "other",
+      "payType": "HOURLY",
+      "payMin": 1500,
+      "payMax": 1500,
+      "schedule": "weekends",
+      "areaLabel": "Maple Grove · 55311",
+      "minAge": 16
+    },
+    {
+      "url": "https://github.com/AnshTheCoder1248/RiseLocal/blob/development/scripts/fixtures/scout-test-feed.json#pool-snack-bar",
+      "title": "Pool snack bar helper",
+      "employer": "Maple Grove Aquatic Center",
+      "description": "Serve snacks and drinks at the outdoor pool's snack bar, restock the cooler and keep the patio clean. Afternoon shifts June through August.",
+      "category": "food-service",
+      "payType": "HOURLY",
+      "payMin": 1450,
+      "payMax": 1450,
+      "schedule": "seasonal",
+      "areaLabel": "Maple Grove · 55311",
+      "minAge": 15
+    },
+    {
+      "url": "https://github.com/AnshTheCoder1248/RiseLocal/blob/development/scripts/fixtures/scout-test-feed.json#taproom-busser",
+      "title": "Brewery taproom busser",
+      "employer": "Northside Brewing",
+      "description": "Clear tables and wash glasses in our brewery taproom on Friday and Saturday evenings.",
+      "category": "food-service",
+      "payType": "HOURLY",
+      "payMin": 1500,
+      "payMax": 1500,
+      "schedule": "weekends",
+      "areaLabel": "Plymouth · 55441"
+    },
+    {
+      "url": "https://github.com/AnshTheCoder1248/RiseLocal/blob/development/scripts/fixtures/scout-test-feed.json#overnight-stocker",
+      "title": "Overnight warehouse stocker",
+      "employer": "QuickShip",
+      "description": "Overnight shifts restocking shelves in our warehouse. Text me for details and to set up a start date.",
+      "category": "retail",
+      "payType": "HOURLY",
+      "payMin": 1800,
+      "payMax": 1800,
+      "schedule": "recurring",
+      "areaLabel": "Plymouth · 55441"
+    },
+    {
+      "url": "https://github.com/AnshTheCoder1248/RiseLocal/blob/development/scripts/fixtures/scout-test-feed.json#incomplete-listing",
+      "title": "Help",
+      "description": "TBD"
+    }
+  ]
+}
