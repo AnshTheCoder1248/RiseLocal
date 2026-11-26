@@ -12,7 +12,8 @@ export const jobDraftSchema = z.object({
   payMax: z.number().int().nonnegative().nullish(),
   schedule: z.enum(SCHEDULES).nullish().catch(null),
   areaLabel: z.string().max(80).optional(),
-  minAge: z.number().int().min(13).max(18).optional(),
+  // Feeds often send null for "not stated"; treat it like a missing field so classify() infers it.
+  minAge: z.number().int().min(13).max(18).nullish().transform((v) => v ?? undefined),
   applyUrl: z.url().optional(),
   confidence: z.record(z.string(), z.number().min(0).max(1)).default({}),
 });
