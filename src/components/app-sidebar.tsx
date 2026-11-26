@@ -4,19 +4,23 @@ import { getCurrentUser } from "@/lib/auth/session";
 import type { Role } from "@/generated/prisma/client";
 import { SidebarNav, type NavItem } from "./sidebar-nav";
 
+const PROFILE: NavItem = { href: "/profile", label: "Profile", icon: "user" };
+
 /** The actions each role can take, shown in the left sidebar once signed in. */
 const NAV: Record<Role, NavItem[]> = {
   STUDENT: [
     { href: "/jobs", label: "Browse jobs", icon: "search" },
     { href: "/saved", label: "Saved jobs", icon: "bookmark" },
     { href: "/resume", label: "My resume", icon: "file" },
+    PROFILE,
   ],
   COMMUNITY: [
     { href: "/jobs", label: "Browse jobs", icon: "search" },
     { href: "/post", label: "Post a gig", icon: "plus" },
+    PROFILE,
   ],
-  EMPLOYER: [{ href: "/jobs", label: "Browse jobs", icon: "search" }],
-  ADMIN: [{ href: "/jobs", label: "Browse jobs", icon: "search" }],
+  EMPLOYER: [{ href: "/jobs", label: "Browse jobs", icon: "search" }, PROFILE],
+  ADMIN: [{ href: "/jobs", label: "Browse jobs", icon: "search" }, PROFILE],
 };
 
 export function AppSidebar() {

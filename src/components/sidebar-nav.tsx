@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bookmark, FileText, Plus, Search } from "lucide-react";
+import { Bookmark, FileText, Plus, Search, UserRound } from "lucide-react";
 import { cn } from "cn";
 
-const ICONS = { search: Search, bookmark: Bookmark, file: FileText, plus: Plus };
+const ICONS = { search: Search, bookmark: Bookmark, file: FileText, plus: Plus, user: UserRound };
 
 export type NavItem = { href: string; label: string; icon: keyof typeof ICONS };
 

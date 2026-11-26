@@ -1,18 +1,28 @@
 import { auth } from "./config";
 import { db } from "@/lib/db";
 import { forbidden, unauthorized } from "@/lib/api";
+import { avatarUrl } from "@/lib/avatar";
 import type { Role, User } from "@/generated/prisma/client";
 
 export type CurrentUser = Pick<User, "id" | "role" | "status" | "isMinor" | "orgId" | "dateOfBirth" | "displayName" | "email" | "image">;
 
-/** Session user re-read from the database — never trust role/status from the client. */
+/**
+ * Session user re-read from the database — never trust role/status from the client.
+ * `image` is the user's uploaded avatar when they have one, otherwise their Google photo.
+ */
 export async function getCurrentUser(): Promise<CurrentUser | null> {
   const session = await auth();
   if (!session?.user?.id) return null;
-  return db.user.findUnique({
+  const user = await db.user.findUnique({
     where: { id: session.user.id },
-    select: { id: true, role: true, status: true, isMinor: true, orgId: true, dateOfBirth: true, displayName: true, email: true, image: true },
+    select: {
+      id: true, role: true, status: true, isMinor: true, orgId: true, dateOfBirth: true, displayName: true, email: true, image: true,
+      avatar: { select: { updatedAt: true } },
+    },
   });
+  if (!user) return null;
+  const { avatar, ...rest } = user;
+  return { ...rest, image: avatar ? avatarUrl(avatar.updatedAt) : rest.image };
 }
 
 type Options = { roles?: Role[]; allowPending?: boolean };

@@ -11,16 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { logout } from "@/app/login/actions";
-
-const ROLE_LABEL: Record<string, string> = {
-  STUDENT: "Student",
-  EMPLOYER: "Business",
-  COMMUNITY: "Community member",
-  ADMIN: "Admin",
-};
-
-const initials = (name: string) =>
-  name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]!.toUpperCase()).join("") || "?";
+import { initials, ROLE_LABEL } from "@/lib/user-display";
 
 export function UserMenu({ name, email, image, role }: { name: string; email: string; image: string | null; role: string }) {
   return (

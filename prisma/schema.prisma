@@ -116,6 +116,7 @@ model User {
   guardian       Guardian?
   studentProfile StudentProfile?
   resume         Resume?
+  avatar         Avatar?
   employerOrg    EmployerOrg?    @relation(fields: [orgId], references: [id])
   orgId          String?
 
@@ -173,6 +174,18 @@ model Resume {
   size        Int // bytes
   data        Bytes
   uploadedAt  DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// A profile photo the user uploaded themselves. Takes priority over User.image (which
+// Google sign-in keeps in sync), and is only served back to its owner (src/app/api/avatar).
+model Avatar {
+  id          String   @id @default(cuid())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String   @unique
+  contentType String
+  size        Int // bytes
+  data        Bytes
   updatedAt   DateTime @updatedAt
 }
 
