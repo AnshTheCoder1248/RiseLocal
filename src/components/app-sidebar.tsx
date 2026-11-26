@@ -20,7 +20,11 @@ const NAV: Record<Role, NavItem[]> = {
     PROFILE,
   ],
   EMPLOYER: [{ href: "/jobs", label: "Browse jobs", icon: "search" }, PROFILE],
-  ADMIN: [{ href: "/jobs", label: "Browse jobs", icon: "search" }, PROFILE],
+  ADMIN: [
+    { href: "/jobs", label: "Browse jobs", icon: "search" },
+    { href: "/review", label: "Review jobs", icon: "review" },
+    PROFILE,
+  ],
 };
 
 export function AppSidebar() {
