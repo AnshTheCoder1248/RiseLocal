@@ -1,10 +1,14 @@
 "use server";
 
 import { AuthError, CredentialsSignin } from "next-auth";
-import { signIn } from "@/lib/auth/config";
+import { signIn, signOut } from "@/lib/auth/config";
 import { safeNext } from "@/lib/jobs/format";
 
 export type LoginState = { error?: string } | undefined;
+
+export async function logout() {
+  await signOut({ redirectTo: "/" });
+}
 
 /** Google sign-in. Redirects to Google; the signIn callback only admits existing accounts. */
 export async function loginWithGoogle(formData: FormData) {

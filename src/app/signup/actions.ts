@@ -57,7 +57,7 @@ export async function completeGoogleSignup(_prev: GoogleSignupState, formData: F
     await enforceRateLimit(LIMITS.signupEmail(identity.email));
     ({ guardianConsentRequired } = await registerUser(
       { ...parsed.data, email: identity.email },
-      { google: { providerAccountId: identity.providerAccountId, type: identity.type } },
+      { google: { providerAccountId: identity.providerAccountId, type: identity.type, image: identity.image } },
     ));
   } catch (err) {
     if (err instanceof ApiError) {

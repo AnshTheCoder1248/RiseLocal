@@ -64,6 +64,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         kind: "google-signup",
         email,
         name: user.name ?? email.split("@")[0],
+        image: user.image ?? undefined,
         providerAccountId: account.providerAccountId,
         type: account.type,
         exp: Date.now() + GOOGLE_SIGNUP_TTL_S * 1000,
@@ -77,7 +78,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       });
       return "/signup/google";
     },
-    async jwt({ token, user }) {
+    async jwt({ token, user, account }) {
       if (user?.email) {
         const dbUser = await db.user.findUnique({ where: { email: user.email.toLowerCase() } });
         if (dbUser) {
@@ -85,6 +86,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           token.role = dbUser.role;
           token.status = dbUser.status;
           token.isMinor = dbUser.isMinor;
+          // Keep the Google profile photo current; the site header shows it.
+          if (account?.provider === "google" && user.image && user.image !== dbUser.image) {
+            await db.user.update({ where: { id: dbUser.id }, data: { image: user.image } });
+          }
         }
       }
       return token;

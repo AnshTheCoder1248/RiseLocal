@@ -18,7 +18,7 @@ export type SignupProfile = {
 };
 
 /** How the new account signs in: a password, or a verified Google identity. */
-export type SignupCredential = { passwordHash: string } | { google: { providerAccountId: string; type: string } };
+export type SignupCredential = { passwordHash: string } | { google: { providerAccountId: string; type: string; image?: string } };
 
 /**
  * Age gate (AUTH-2), role rules, guardian flow (AUTH-3) and account creation, shared by
@@ -51,6 +51,7 @@ export async function registerUser(input: SignupProfile, credential: SignupCrede
           ? { passwordHash: credential.passwordHash }
           : {
               emailVerified: new Date(), // Google only admits verified emails
+              image: credential.google.image,
               accounts: { create: { provider: "google", type: credential.google.type, providerAccountId: credential.google.providerAccountId } },
             }),
         displayName: input.displayName,

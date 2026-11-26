@@ -16,7 +16,6 @@ export default function PostGigPage() {
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-4 py-10 sm:px-6">
       <header className="flex flex-col gap-2">
-        <Link href="/" className="text-sm text-muted-foreground hover:text-foreground">← RiseLocal</Link>
         <h1 className="text-3xl font-semibold tracking-tight">Post a gig</h1>
         <p className="text-muted-foreground">
           Need a hand with yard work, tutoring, pet sitting or errands? Local teens can apply right here on RiseLocal.

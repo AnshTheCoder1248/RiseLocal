@@ -22,7 +22,6 @@ const ERRORS: Record<string, string> = {
 export default function LoginPage({ searchParams }: PageProps<"/login">) {
   return (
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center gap-6 px-4 py-12">
-      <Link href="/" className="text-sm text-muted-foreground hover:text-foreground">← RiseLocal</Link>
       <Card>
         <CardHeader>
           <CardTitle className="text-xl">Sign in</CardTitle>

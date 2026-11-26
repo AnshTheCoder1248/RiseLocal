@@ -14,7 +14,6 @@ const googleEnabled = () => !!process.env.AUTH_GOOGLE_ID && !!process.env.AUTH_G
 export default function SignupPage() {
   return (
     <main className="mx-auto flex w-full max-w-xl flex-1 flex-col justify-center gap-6 px-4 py-12">
-      <Link href="/" className="text-sm text-muted-foreground hover:text-foreground">← RiseLocal</Link>
       <Card>
         <CardHeader>
           <CardTitle className="text-xl">Create your account</CardTitle>

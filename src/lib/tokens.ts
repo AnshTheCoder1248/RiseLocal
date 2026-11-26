@@ -8,7 +8,7 @@ export type TokenPayload =
   | { kind: "guardian-consent"; studentId: string; email: string; exp: number }
   | { kind: "guardian-approve"; applicationId: string; email: string; exp: number }
   // Verified Google identity awaiting the role + date-of-birth step (/signup/google).
-  | { kind: "google-signup"; email: string; name: string; providerAccountId: string; type: string; exp: number };
+  | { kind: "google-signup"; email: string; name: string; image?: string; providerAccountId: string; type: string; exp: number };
 
 const b64 = (buf: Buffer | string) => Buffer.from(buf).toString("base64url");
 const sign = (data: string) => createHmac("sha256", env().TOKEN_SECRET).update(data).digest();

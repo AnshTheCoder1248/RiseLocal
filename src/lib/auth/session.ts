@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { forbidden, unauthorized } from "@/lib/api";
 import type { Role, User } from "@/generated/prisma/client";
 
-export type CurrentUser = Pick<User, "id" | "role" | "status" | "isMinor" | "orgId" | "dateOfBirth" | "displayName" | "email">;
+export type CurrentUser = Pick<User, "id" | "role" | "status" | "isMinor" | "orgId" | "dateOfBirth" | "displayName" | "email" | "image">;
 
 /** Session user re-read from the database — never trust role/status from the client. */
 export async function getCurrentUser(): Promise<CurrentUser | null> {
@@ -11,7 +11,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
   if (!session?.user?.id) return null;
   return db.user.findUnique({
     where: { id: session.user.id },
-    select: { id: true, role: true, status: true, isMinor: true, orgId: true, dateOfBirth: true, displayName: true, email: true },
+    select: { id: true, role: true, status: true, isMinor: true, orgId: true, dateOfBirth: true, displayName: true, email: true, image: true },
   });
 }
 

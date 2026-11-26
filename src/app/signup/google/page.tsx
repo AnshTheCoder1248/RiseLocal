@@ -14,7 +14,6 @@ export const metadata: Metadata = { title: "Finish signing up — RiseLocal" };
 export default function GoogleSignupPage() {
   return (
     <main className="mx-auto flex w-full max-w-xl flex-1 flex-col justify-center gap-6 px-4 py-12">
-      <Link href="/" className="text-sm text-muted-foreground hover:text-foreground">← RiseLocal</Link>
       <Card>
         <CardHeader>
           <CardTitle className="text-xl">Finish creating your account</CardTitle>
