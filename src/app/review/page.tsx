@@ -18,7 +18,7 @@ export default function ReviewPage() {
       <header className="flex flex-col gap-2">
         <h1 className="text-3xl font-semibold tracking-tight">Review jobs</h1>
         <p className="text-muted-foreground">
-          Jobs Scout found that aren’t linked to a business. Approving runs the safety check and publishes the job to the board.
+          Every job Scout has found that’s waiting for review. Approving runs the safety check and publishes the job to the board.
         </p>
       </header>
       <Suspense fallback={<div className="grid gap-3">{Array.from({ length: 3 }, (_, i) => <Skeleton key={i} className="h-44 w-full rounded-xl" />)}</div>}>
@@ -40,11 +40,12 @@ async function Queues() {
   if (user.role !== "ADMIN") redirect("/jobs");
 
   const [drafts, holds] = await Promise.all([
-    // Same queue as GET /api/admin/moderation: drafts not matched to a business.
+    // Every pending Scout draft — including ones matched to a business — so nothing the crawl
+    // finds is invisible to admins (a matched business may have no members to review it).
     db.agentDraft.findMany({
-      where: { reviewState: "pending", orgId: null, job: { isNot: null } },
-      orderBy: [{ confidence: { sort: "desc", nulls: "last" } }, { createdAt: "desc" }],
-      include: { job: true },
+      where: { reviewState: "pending", job: { isNot: null } },
+      orderBy: [{ createdAt: "desc" }, { confidence: { sort: "desc", nulls: "last" } }],
+      include: { job: { include: { org: { select: { name: true } } } } },
     }),
     db.job.findMany({
       where: { moderationHold: true, archivedAt: null },
@@ -76,7 +77,11 @@ async function Queues() {
                     job={d.job!}
                     employer={p.employer}
                     link={p.applyUrl ?? d.sourceUrl}
-                    meta={`Found ${ago(d.createdAt)}${d.confidence != null ? ` · ${Math.round(d.confidence * 100)}% extraction confidence` : ""}`}
+                    meta={[
+                      `Found ${ago(d.createdAt)}`,
+                      d.job!.org && `Matched to ${d.job!.org.name}`,
+                      d.confidence != null && `${Math.round(d.confidence * 100)}% extraction confidence`,
+                    ].filter(Boolean).join(" · ")}
                     actions={<ReviewActions kind="draft" id={d.id} title={d.job!.title} />}
                   />
                 </li>
