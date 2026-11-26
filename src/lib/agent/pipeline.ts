@@ -2,7 +2,7 @@ import { db } from "@/lib/db";
 import type { Prisma } from "@/generated/prisma/client";
 import { extract } from "./extract";
 import { classify, type Classification } from "./classify";
-import { fingerprint } from "./fingerprint";
+import { fingerprint, norm } from "./fingerprint";
 import type { JobDraftData, RawItem } from "./schema";
 
 // Stages 2–4 for one discovered item: extract → classify → dedupe & file (AG-6, AG-7, AG-8, AG-9).
@@ -53,12 +53,16 @@ async function findOrgId(client: Client, draft: JobDraftData, hints: SourceHints
   return org?.id ?? null;
 }
 
+// Near-identical titles only count as the same listing from the same employer: unmatched drafts
+// all share orgId = null, so without the employer check "Retail Associate" at one store would
+// swallow "Retail Sales Associate" at another in the same town.
 async function findFuzzyDuplicate(client: Client, draft: JobDraftData, orgId: string | null) {
   const rows = await client.$queryRaw<{ id: string }[]>`
     SELECT ad.id FROM "AgentDraft" ad JOIN "Job" j ON j.id = ad."jobId"
     WHERE similarity(j.title, ${draft.title}) > 0.6
       AND coalesce(ad."orgId", '') = ${orgId ?? ""}
       AND j."areaLabel" ILIKE ${draft.areaLabel ?? "%"}
+      AND trim(regexp_replace(lower(coalesce(ad."rawPayload"->>'employer', '')), '[^a-z0-9]+', ' ', 'g')) = ${norm(draft.employer)}
     LIMIT 1`;
   return rows[0]?.id;
 }
