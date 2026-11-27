@@ -55,7 +55,7 @@ async function Dashboard() {
       orderBy: [{ status: "desc" }, { updatedAt: "desc" }], // published (later in the enum) before drafts
       select: {
         id: true, title: true, status: true, source: true, payType: true, payMin: true, payMax: true, areaLabel: true, remote: true,
-        minAge: true, moderationHold: true, publishedAt: true, createdAt: true,
+        minAge: true, moderationHold: true, publishedAt: true, createdAt: true, views: true,
         _count: { select: { applications: { where: { status: { not: "PENDING_GUARDIAN" } } } } },
         applications: { select: { status: true } },
       },
@@ -117,11 +117,12 @@ async function Dashboard() {
           </Card>
         ) : (
           <div className="overflow-x-auto rounded-xl border">
-            <table className="w-full min-w-[640px] text-sm">
+            <table className="w-full min-w-[700px] text-sm">
               <thead className="border-b bg-muted/40 text-left text-muted-foreground">
                 <tr>
                   <th className="px-4 py-2 font-medium">Job</th>
                   <th className="px-4 py-2 font-medium">Status</th>
+                  <th className="px-4 py-2 text-right font-medium">Views</th>
                   <th className="px-4 py-2 text-right font-medium">Applicants</th>
                   <th className="px-4 py-2 text-right font-medium">Hired</th>
                   <th className="px-4 py-2 font-medium">Date</th>
@@ -151,6 +152,9 @@ async function Dashboard() {
                         ) : (
                           <Badge variant={j.status === "PUBLISHED" ? "default" : "secondary"}>{j.status === "PUBLISHED" ? "Published" : "Draft"}</Badge>
                         )}
+                      </td>
+                      <td className="px-4 py-3 text-right tabular-nums" title={j.status === "PUBLISHED" ? undefined : "Views are counted once a job is published"}>
+                        {j.status === "PUBLISHED" ? j.views.toLocaleString() : "—"}
                       </td>
                       <td className="px-4 py-3 text-right tabular-nums">
                         {j._count.applications ? (

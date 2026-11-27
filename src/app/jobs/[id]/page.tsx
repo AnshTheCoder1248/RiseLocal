@@ -15,6 +15,7 @@ import { formatPay, labelize, postedAgo } from "@/lib/jobs/format";
 import { ApplyForm } from "./apply-form";
 import { SaveJobButton } from "./save-button";
 import { WatchJobButton } from "./watch-button";
+import { RecordView } from "./record-view";
 import type { BoardFilters } from "@/lib/validation/jobs";
 
 export default function JobPage({ params }: PageProps<"/jobs/[id]">) {
@@ -63,6 +64,7 @@ async function JobDetail({ params }: { params: Promise<{ id: string }> }) {
 
   return (
     <>
+      <RecordView jobId={job.id} />
       <header className="flex flex-col gap-3">
         <div className="flex items-start gap-3">
           <h1 className="flex-1 text-3xl font-semibold tracking-tight">{job.title}</h1>

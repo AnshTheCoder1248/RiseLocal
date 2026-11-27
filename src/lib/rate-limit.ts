@@ -38,6 +38,8 @@ export const LIMITS = {
   ],
   apply: (userId: string): RateRule[] => [{ key: `apply:user:${userId}`, limit: 20, windowMs: DAY }],
   report: (userId: string): RateRule[] => [{ key: `report:user:${userId}`, limit: 20, windowMs: HOUR }],
+  // Job page views: one counted view per viewer (account, else IP) per job every 6 hours.
+  jobView: (viewer: string, jobId: string): RateRule[] => [{ key: `view:${viewer}:${jobId}`, limit: 1, windowMs: 6 * HOUR }],
 };
 
 /** Keys are hashed so raw IPs and emails never land in the database. */

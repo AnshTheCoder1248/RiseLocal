@@ -10,6 +10,7 @@ import { checkContent } from "@/lib/safety/filter";
 import { ageOn } from "@/lib/auth/age";
 import { coarsen } from "@/lib/geo";
 import { audit } from "@/lib/audit";
+import { checkRateLimit, clientIp, LIMITS } from "@/lib/rate-limit";
 import type { Prisma } from "@/generated/prisma/client";
 
 // GET /api/jobs/:id — detail incl. poster trust signals. Non-public jobs only for their managers.
@@ -23,7 +24,11 @@ export const GET = handler(async (_req: NextRequest, ctx: RouteContext<"/api/job
   const manager = viewer && canManageJob(job, viewer);
   if (!isPublic && !manager) throw notFound("Job not found");
 
-  if (isPublic && !manager) await db.job.update({ where: { id }, data: { views: { increment: 1 } } });
+  // Same rule as POST /api/jobs/:id/view: one counted view per viewer per job every 6 hours.
+  if (isPublic && !manager) {
+    const { allowed } = await checkRateLimit(LIMITS.jobView(viewer ? `user:${viewer.id}` : `ip:${clientIp(_req)}`, id));
+    if (allowed) await db.job.update({ where: { id }, data: { views: { increment: 1 } } });
+  }
 
   const [postsCount, hires, ratings] = await Promise.all([
     db.job.count({ where: { postedById: job.postedById, status: { in: ["PUBLISHED", "FILLED", "EXPIRED"] } } }),
