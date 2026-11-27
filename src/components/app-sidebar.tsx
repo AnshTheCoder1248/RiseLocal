@@ -10,6 +10,7 @@ const PROFILE: NavItem = { href: "/profile", label: "Profile", icon: "user" };
 const NAV: Record<Role, NavItem[]> = {
   STUDENT: [
     { href: "/jobs", label: "Browse jobs", icon: "search" },
+    { href: "/applications", label: "My applications", icon: "send" },
     { href: "/saved", label: "Saved jobs", icon: "bookmark" },
     { href: "/resume", label: "My resume", icon: "file" },
     PROFILE,
