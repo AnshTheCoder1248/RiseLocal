@@ -26,6 +26,9 @@ export const PATCH = handler(async (req: NextRequest, ctx: RouteContext<"/api/ap
     case "move":
       if (!isPoster) throw forbidden("Only the poster can move applicants");
       if (["WITHDRAWN", "PENDING_GUARDIAN"].includes(app.status)) throw conflict("This application isn't active");
+      // "Viewed" only applies to a new application: it never demotes a shortlisted or hired
+      // applicant, and a repeat (another tab, a retry) changes nothing and notifies no one.
+      if (input.status === "VIEWED" && app.status !== "SENT") return json({ application: app });
       data.status = input.status;
       notifyUserId = app.studentId;
       break;
@@ -53,7 +56,13 @@ export const PATCH = handler(async (req: NextRequest, ctx: RouteContext<"/api/ap
 
   const updated = await db.application.update({ where: { id }, data });
   if (notifyUserId) {
-    await notify(notifyUserId, "app_update", { applicationId: id, jobId: app.jobId, title: app.job.title, status: updated.status, action: input.action });
+    await notify(
+      notifyUserId,
+      "app_update",
+      { applicationId: id, jobId: app.jobId, title: app.job.title, status: updated.status, action: input.action },
+      // Two simultaneous "viewed" requests can both see SENT; the dedupe key keeps it to one notification.
+      updated.status === "VIEWED" ? { dedupeKey: `app-viewed:${id}` } : {},
+    );
   }
   return json({ application: updated });
 });
