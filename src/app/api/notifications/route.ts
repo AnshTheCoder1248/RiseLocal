@@ -20,6 +20,13 @@ export const GET = handler(async (req: Request) => {
   return json({ items, unread, nextCursor: items.length === 30 ? items.at(-1)!.id : null });
 });
 
+// DELETE /api/notifications — clear the inbox: permanently removes all of this user's notifications.
+export const DELETE = handler(async () => {
+  const user = await requireUser({ allowPending: true });
+  const { count } = await db.notification.deleteMany({ where: { userId: user.id } });
+  return json({ deleted: count });
+});
+
 // PATCH /api/notifications — mark read: { ids: [...] } or { all: true }.
 export const PATCH = handler(async (req: Request) => {
   const user = await requireUser({ allowPending: true });

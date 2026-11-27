@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Award, Bell, CheckCheck, Info, Send } from "lucide-react";
+import { Award, Bell, CheckCheck, Info, Send, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "cn";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,7 @@ export function NotificationList({ items, unread }: { items: Item[]; unread: num
   const router = useRouter();
   const [readIds, setReadIds] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
+  const [confirmingClear, setConfirmingClear] = useState(false);
   const isRead = (i: Item) => i.read || readIds.has(i.id);
   const unreadNow = items.filter((i) => !isRead(i)).length;
 
@@ -46,6 +47,21 @@ export function NotificationList({ items, unread }: { items: Item[]; unread: num
     }
   }
 
+  async function clearAll() {
+    setBusy(true);
+    try {
+      const res = await fetch("/api/notifications", { method: "DELETE" });
+      if (!res.ok) throw new Error();
+      toast.success("Notifications cleared");
+      setConfirmingClear(false);
+      router.refresh();
+    } catch {
+      toast.error("Couldn’t clear notifications. Please try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <>
       <header className="flex flex-wrap items-end justify-between gap-3">
@@ -53,11 +69,32 @@ export function NotificationList({ items, unread }: { items: Item[]; unread: num
           <h1 className="text-3xl font-semibold tracking-tight">Notifications</h1>
           <p className="text-muted-foreground">{unreadNow ? `${unreadNow} unread` : unread || items.length ? "No unread notifications" : "Nothing here yet"}</p>
         </div>
-        {unreadNow > 0 && (
-          <Button variant="outline" size="sm" onClick={markAll} disabled={busy}>
-            <CheckCheck aria-hidden />
-            {busy ? "Marking…" : "Mark all as read"}
-          </Button>
+        {items.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2">
+            {confirmingClear ? (
+              // Clearing deletes them for good, so it takes a second click.
+              <>
+                <span className="text-sm text-muted-foreground">Clear all {items.length} notifications? This can’t be undone.</span>
+                <Button variant="destructive" size="sm" onClick={clearAll} disabled={busy}>
+                  {busy ? "Clearing…" : "Yes, clear all"}
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => setConfirmingClear(false)} disabled={busy}>Cancel</Button>
+              </>
+            ) : (
+              <>
+                {unreadNow > 0 && (
+                  <Button variant="outline" size="sm" onClick={markAll} disabled={busy}>
+                    <CheckCheck aria-hidden />
+                    {busy ? "Marking…" : "Mark all as read"}
+                  </Button>
+                )}
+                <Button variant="ghost" size="sm" onClick={() => setConfirmingClear(true)} disabled={busy}>
+                  <Trash2 aria-hidden />
+                  Clear all
+                </Button>
+              </>
+            )}
+          </div>
         )}
       </header>
 
