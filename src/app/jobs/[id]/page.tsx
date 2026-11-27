@@ -14,6 +14,8 @@ import { publicJobWhere } from "@/lib/safety/gate";
 import { formatPay, labelize, postedAgo } from "@/lib/jobs/format";
 import { ApplyForm } from "./apply-form";
 import { SaveJobButton } from "./save-button";
+import { WatchJobButton } from "./watch-button";
+import type { BoardFilters } from "@/lib/validation/jobs";
 
 export default function JobPage({ params }: PageProps<"/jobs/[id]">) {
   return (
@@ -34,12 +36,20 @@ async function JobDetail({ params }: { params: Promise<{ id: string }> }) {
 
   const viewer = await getCurrentUser();
   const age = viewer?.role === "STUDENT" && viewer.dateOfBirth ? ageOn(viewer.dateOfBirth) : undefined;
-  const [existing, saved] = viewer?.role === "STUDENT"
+  // "Watch" saves an alert for jobs like this one: same type, nearby (or remote), and old enough for.
+  const watchName = `Jobs like ${job.title}`.slice(0, 80);
+  const watchFilters: BoardFilters = {
+    category: [job.category] as NonNullable<BoardFilters["category"]>,
+    eligibleOnly: true,
+    ...(job.remote ? { remote: true } : job.lat != null && job.lng != null ? { lat: job.lat, lng: job.lng, radiusMi: 10 } : {}),
+  };
+  const [existing, saved, watch] = viewer?.role === "STUDENT"
     ? await Promise.all([
         db.application.findFirst({ where: { jobId: id, studentId: viewer.id }, select: { status: true } }),
         db.savedJob.count({ where: { jobId: id, userId: viewer.id } }),
+        db.watch.findFirst({ where: { studentId: viewer.id, name: watchName }, select: { frequency: true } }),
       ])
-    : [null, 0];
+    : [null, 0, null];
 
   const details = [
     ["Pay", formatPay(job)],
@@ -56,7 +66,12 @@ async function JobDetail({ params }: { params: Promise<{ id: string }> }) {
       <header className="flex flex-col gap-3">
         <div className="flex items-start gap-3">
           <h1 className="flex-1 text-3xl font-semibold tracking-tight">{job.title}</h1>
-          {viewer?.role === "STUDENT" && <SaveJobButton jobId={job.id} initialSaved={saved > 0} />}
+          {viewer?.role === "STUDENT" && (
+            <div className="flex shrink-0 items-start gap-2">
+              <WatchJobButton name={watchName} filters={watchFilters} watching={watch ? (watch.frequency === "daily" ? "daily" : "instant") : null} />
+              <SaveJobButton jobId={job.id} initialSaved={saved > 0} />
+            </div>
+          )}
         </div>
         <p className="text-muted-foreground">
           {job.org?.name ?? job.postedBy.displayName}
