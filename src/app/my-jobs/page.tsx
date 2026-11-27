@@ -9,8 +9,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Skeleton } from "@/components/ui/skeleton";
 import { db } from "@/lib/db";
 import { formatPay, labelize } from "@/lib/jobs/format";
-import type { JobStatus } from "@/generated/prisma/client";
+import type { AppStatus, JobStatus } from "@/generated/prisma/client";
 import { requirePoster } from "@/app/business/business-user";
+import { JobRowActions } from "@/app/business/job-row-actions";
 
 export const metadata: Metadata = { title: "My jobs — RiseLocal" };
 
@@ -20,7 +21,7 @@ export default function MyJobsPage() {
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div className="flex flex-col gap-1">
           <h1 className="text-3xl font-semibold tracking-tight">My jobs</h1>
-          <p className="text-muted-foreground">The gigs you’ve posted.</p>
+          <p className="text-muted-foreground">The gigs you’ve posted. Edit one to change it, or remove it when it’s filled or no longer needed.</p>
         </div>
         <Link href="/post" className={buttonVariants()}>Post a gig</Link>
       </header>
@@ -39,6 +40,9 @@ const STATUS: Partial<Record<JobStatus, { label: string; variant: "default" | "s
   EXPIRED: { label: "Expired", variant: "outline" },
 };
 
+/** Applications still waiting — those applicants are told when a gig is filled or deleted. */
+const OPEN: AppStatus[] = ["PENDING_GUARDIAN", "SENT", "VIEWED", "SHORTLISTED"];
+
 const dateFmt = (d: Date) => d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 
 async function Gigs() {
@@ -52,6 +56,7 @@ async function Gigs() {
     select: {
       id: true, title: true, description: true, status: true, moderationHold: true, category: true, schedule: true,
       payType: true, payMin: true, payMax: true, areaLabel: true, remote: true, minAge: true, publishedAt: true, createdAt: true,
+      _count: { select: { applications: { where: { status: { in: OPEN } } } } },
     },
   });
 
@@ -86,10 +91,14 @@ async function Gigs() {
                     {g.remote ? "Remote" : g.areaLabel} · {g.publishedAt ? `Posted ${dateFmt(g.publishedAt)}` : `Created ${dateFmt(g.createdAt)}`}
                   </CardDescription>
                 </div>
-                <Link href={`/my-jobs/${g.id}/edit`} className={buttonVariants({ variant: "outline", size: "sm" })}>
-                  <Pencil aria-hidden />
-                  Edit
-                </Link>
+                <div className="flex shrink-0 items-center gap-1">
+                  <Link href={`/my-jobs/${g.id}/edit`} className={buttonVariants({ variant: "outline", size: "sm" })}>
+                    <Pencil aria-hidden />
+                    Edit
+                  </Link>
+                  {/* Live gigs can be marked filled or deleted; anything else can be deleted. */}
+                  <JobRowActions id={g.id} title={g.title} published={g.status === "PUBLISHED"} openApplicants={g._count.applications} />
+                </div>
               </CardHeader>
               <CardContent className="flex flex-col gap-3 text-sm">
                 <div className="flex flex-wrap items-center gap-2">
