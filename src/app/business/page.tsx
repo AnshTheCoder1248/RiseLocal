@@ -8,7 +8,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Skeleton } from "@/components/ui/skeleton";
 import { db } from "@/lib/db";
 import { formatPay } from "@/lib/jobs/format";
+import type { AppStatus } from "@/generated/prisma/client";
 import { businessJobsWhere, requireBusiness } from "./business-user";
+import { JobRowActions } from "./job-row-actions";
 
 export const metadata: Metadata = { title: "Dashboard — RiseLocal" };
 
@@ -29,6 +31,9 @@ export default function BusinessDashboardPage() {
     </main>
   );
 }
+
+/** Applications still in play — the people told when a job is filled or deleted. */
+const OPEN: AppStatus[] = ["PENDING_GUARDIAN", "SENT", "VIEWED", "SHORTLISTED"];
 
 const dateFmt = (d: Date) => d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 
@@ -52,14 +57,14 @@ async function Dashboard() {
         id: true, title: true, status: true, source: true, payType: true, payMin: true, payMax: true, areaLabel: true, remote: true,
         minAge: true, moderationHold: true, publishedAt: true, createdAt: true,
         _count: { select: { applications: { where: { status: { not: "PENDING_GUARDIAN" } } } } },
-        applications: { where: { status: "HIRED" }, select: { id: true } },
+        applications: { select: { status: true } },
       },
     }),
   ]);
 
   const stats = [
     { label: "Published", value: published },
-    { label: "Applicants", value: applicants },
+    { label: "Applicants", value: applicants, href: "/business/applicants" },
     { label: "Scout drafts", value: scoutDrafts, href: "/business/suggestions" },
     { label: "Hired", value: hired },
   ];
@@ -120,11 +125,14 @@ async function Dashboard() {
                   <th className="px-4 py-2 text-right font-medium">Applicants</th>
                   <th className="px-4 py-2 text-right font-medium">Hired</th>
                   <th className="px-4 py-2 font-medium">Date</th>
+                  <th className="px-4 py-2"><span className="sr-only">Actions</span></th>
                 </tr>
               </thead>
               <tbody>
                 {jobs.map((j) => {
                   const live = j.status === "PUBLISHED" && !j.moderationHold;
+                  const hiredHere = j.applications.filter((a) => a.status === "HIRED").length;
+                  const waiting = j.applications.filter((a) => OPEN.includes(a.status)).length;
                   return (
                     <tr key={j.id} className="border-b last:border-b-0">
                       <td className="px-4 py-3">
@@ -144,10 +152,19 @@ async function Dashboard() {
                           <Badge variant={j.status === "PUBLISHED" ? "default" : "secondary"}>{j.status === "PUBLISHED" ? "Published" : "Draft"}</Badge>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-right tabular-nums">{j._count.applications}</td>
-                      <td className="px-4 py-3 text-right tabular-nums">{j.applications.length}</td>
+                      <td className="px-4 py-3 text-right tabular-nums">
+                        {j._count.applications ? (
+                          <Link href={`/business/applicants?job=${j.id}`} className="underline underline-offset-4 hover:text-foreground">{j._count.applications}</Link>
+                        ) : (
+                          0
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-right tabular-nums">{hiredHere}</td>
                       <td className="px-4 py-3 text-muted-foreground">
                         {j.publishedAt ? `Published ${dateFmt(j.publishedAt)}` : `Created ${dateFmt(j.createdAt)}`}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <JobRowActions id={j.id} title={j.title} published={j.status === "PUBLISHED"} openApplicants={waiting} />
                       </td>
                     </tr>
                   );
@@ -156,7 +173,9 @@ async function Dashboard() {
             </table>
           </div>
         )}
-        <p className="text-xs text-muted-foreground">Published and draft jobs are shown. Scout’s pending suggestions are on the Scout suggestions tab.</p>
+        <p className="text-xs text-muted-foreground">
+          Published and draft jobs are shown. Use Remove when a job is filled or you no longer want it listed. Scout’s pending suggestions are on the Scout suggestions tab.
+        </p>
       </section>
     </>
   );

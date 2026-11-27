@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bell, Bookmark, FileText, Inbox, LayoutDashboard, Plus, Search, Send, ShieldCheck, Sparkles, UserRound } from "lucide-react";
+import { Bell, Bookmark, FileText, Inbox, LayoutDashboard, Plus, Search, Send, ShieldCheck, Sparkles, UserRound, Users } from "lucide-react";
 import { cn } from "cn";
 
-const ICONS = { search: Search, bookmark: Bookmark, file: FileText, plus: Plus, user: UserRound, review: ShieldCheck, send: Send, bell: Bell, inbox: Inbox, dashboard: LayoutDashboard, sparkles: Sparkles };
+const ICONS = { search: Search, bookmark: Bookmark, file: FileText, plus: Plus, user: UserRound, review: ShieldCheck, send: Send, bell: Bell, inbox: Inbox, dashboard: LayoutDashboard, sparkles: Sparkles, users: Users };
 
 /** `badge`: an optional count shown after the label (e.g. unread notifications). */
 export type NavItem = { href: string; label: string; icon: keyof typeof ICONS; badge?: number; badgeLabel?: string };

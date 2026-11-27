@@ -26,6 +26,7 @@ const NAV: Record<Role, NavItem[]> = {
   // Businesses manage their own postings rather than browse: /jobs redirects them to /business.
   EMPLOYER: [
     { href: "/business", label: "Dashboard", icon: "dashboard" },
+    { href: "/business/applicants", label: "Applicants", icon: "users" },
     { href: "/business/suggestions", label: "Scout suggestions", icon: "sparkles" },
     { href: "/business/post", label: "Post a job", icon: "plus" },
     PROFILE,
@@ -48,11 +49,20 @@ async function Sidebar() {
   const user = await getCurrentUser();
   if (!user) return null;
   // Counts shown next to a tab: unread notifications for students, pending Scout suggestions for businesses.
-  const [unread, suggestions] = await Promise.all([
+  const business = user.role === "EMPLOYER";
+  const [unread, suggestions, newApplicants] = await Promise.all([
     user.role === "STUDENT" ? db.notification.count({ where: { userId: user.id, readAt: null } }) : 0,
-    user.role === "EMPLOYER" && user.orgId ? db.agentDraft.count({ where: { orgId: user.orgId, reviewState: "pending" } }) : 0,
+    business && user.orgId ? db.agentDraft.count({ where: { orgId: user.orgId, reviewState: "pending" } }) : 0,
+    // Applications the business hasn't opened yet (they turn VIEWED on the Applicants page).
+    business
+      ? db.application.count({ where: { status: "SENT", job: { OR: [{ postedById: user.id }, ...(user.orgId ? [{ orgId: user.orgId }] : [])] } } })
+      : 0,
   ]);
-  const badges: Record<string, [number, string]> = { "/notifications": [unread, "unread"], "/business/suggestions": [suggestions, "pending"] };
+  const badges: Record<string, [number, string]> = {
+    "/notifications": [unread, "unread"],
+    "/business/suggestions": [suggestions, "pending"],
+    "/business/applicants": [newApplicants, "new"],
+  };
   const items = NAV[user.role].map((i) => (badges[i.href]?.[0] ? { ...i, badge: badges[i.href][0], badgeLabel: badges[i.href][1] } : i));
   return (
     <aside className="border-b bg-sidebar text-sidebar-foreground md:sticky md:top-0 md:h-[calc(100svh-3.5rem)] md:w-56 md:shrink-0 md:border-r md:border-b-0">
