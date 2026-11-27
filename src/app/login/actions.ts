@@ -10,9 +10,11 @@ export async function logout() {
   await signOut({ redirectTo: "/" });
 }
 
+/** With no `next`, sign-in goes to "/", where the proxy sends each role to its own home page. */
+
 /** Google sign-in. Redirects to Google; the signIn callback only admits existing accounts. */
 export async function loginWithGoogle(formData: FormData) {
-  await signIn("google", { redirectTo: safeNext(formData.get("next")) });
+  await signIn("google", { redirectTo: safeNext(formData.get("next"), "/") });
 }
 
 /** Credentials sign-in. On success Auth.js redirects (a thrown redirect, so it's rethrown). */
@@ -21,7 +23,7 @@ export async function login(_prev: LoginState, formData: FormData): Promise<Logi
     await signIn("credentials", {
       email: String(formData.get("email") ?? ""),
       password: String(formData.get("password") ?? ""),
-      redirectTo: safeNext(formData.get("next")),
+      redirectTo: safeNext(formData.get("next"), "/"),
     });
   } catch (err) {
     if (err instanceof CredentialsSignin && err.code === "rate_limited") {

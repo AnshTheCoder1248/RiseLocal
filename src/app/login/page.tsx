@@ -44,7 +44,7 @@ async function Form({ searchParams }: { searchParams: Promise<Record<string, str
   const sp = await searchParams;
   const code = typeof sp.code === "string" ? sp.code : undefined;
   const error = typeof sp.error === "string" ? sp.error : undefined;
-  const next = safeNext(sp.next);
+  const next = safeNext(sp.next, "/"); // "/" lets the proxy pick each role's home page
   const googleEnabled = !!process.env.AUTH_GOOGLE_ID && !!process.env.AUTH_GOOGLE_SECRET;
   return (
     <div className="flex flex-col gap-4">
