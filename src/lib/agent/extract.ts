@@ -1,4 +1,5 @@
 import { env } from "@/lib/env";
+import { fieldConfidence } from "./confidence";
 import { jobDraftSchema, type JobDraftData, type RawItem } from "./schema";
 
 // Stage 2 — Extract (AG-4). Structured items (json_api with a field map) are mapped
@@ -28,7 +29,10 @@ function mapFields(fields: Record<string, unknown>, fieldMap: Record<string, str
 export async function extract(item: RawItem, hints: { fieldMap?: Record<string, string> } = {}): Promise<ExtractResult> {
   if (item.fields && !item.text) {
     const parsed = jobDraftSchema.safeParse({ ...mapFields(item.fields, hints.fieldMap), applyUrl: item.url });
-    return parsed.success ? { ok: true, drafts: [parsed.data] } : { ok: false, reason: `field map invalid: ${parsed.error.issues[0]?.message}` };
+    if (!parsed.success) return { ok: false, reason: `field map invalid: ${parsed.error.issues[0]?.message}` };
+    // Feeds rarely send confidences; score each key field by whether the listing provides it.
+    const draft = Object.keys(parsed.data.confidence).length ? parsed.data : { ...parsed.data, confidence: fieldConfidence(parsed.data) };
+    return { ok: true, drafts: [draft] };
   }
 
   try {

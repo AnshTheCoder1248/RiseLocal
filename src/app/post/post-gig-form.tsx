@@ -44,7 +44,28 @@ function Errors({ list }: { list?: string[] }) {
 
 const toCents = (v: string) => (v.trim() === "" ? null : Math.round(Number(v) * 100));
 
-export function PostGigForm({ canPublish }: { canPublish: boolean }) {
+/** Wording for community gigs vs business job postings; the form and API are the same. */
+const COPY = {
+  gig: {
+    noun: "gig", heading: "What do you need help with?", titlePlaceholder: "e.g. Rake leaves in my backyard",
+    descPlaceholder: "What’s the work, how long will it take, and is there anything they should bring or know?",
+    descHint: "Don’t include phone numbers, emails or your street address. Students contact you through RiseLocal.",
+    positions: "How many helpers?", remote: "Can be done remotely (e.g. online tutoring)",
+    live: "Your gig is live!", draftBody: "Your gig is saved but not visible to students yet.",
+    screened: "Every gig is screened before students see it.", defaultSchedule: "one-time",
+  },
+  job: {
+    noun: "job", heading: "About the job", titlePlaceholder: "e.g. Weekend cashier",
+    descPlaceholder: "What will they do, what hours, and what training or perks come with it?",
+    descHint: "Don’t include phone numbers or emails. Applicants reach you through RiseLocal.",
+    positions: "Openings", remote: "Can be done remotely",
+    live: "Your job is live!", draftBody: "Your job is saved as a draft and isn’t visible to students yet.",
+    screened: "Every job is screened before students see it.", defaultSchedule: "weekends",
+  },
+};
+
+export function PostGigForm({ canPublish, kind = "gig", doneHref }: { canPublish: boolean; kind?: keyof typeof COPY; doneHref?: string }) {
+  const t = COPY[kind];
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [tags, setTags] = useState("");
@@ -66,7 +87,7 @@ export function PostGigForm({ canPublish }: { canPublish: boolean }) {
     const get = (k: string) => String(form.get(k) ?? "").trim();
 
     const local: FieldErrors = {};
-    if (title.trim().length < 3) local.title = ["Give your gig a title (at least 3 characters)"];
+    if (title.trim().length < 3) local.title = [`Give your ${t.noun} a title (at least 3 characters)`];
     if (description.trim().length < 10) local.description = ["Describe the work (at least 10 characters)"];
     if (get("areaLabel").length < 2) local.areaLabel = ["Enter a neighborhood or ZIP code"];
     const payMin = payType === "VOLUNTEER" ? null : toCents(get("payMin"));
@@ -109,7 +130,7 @@ export function PostGigForm({ canPublish }: { canPublish: boolean }) {
         setErrors(data.details?.fieldErrors ?? {});
         // A refused publish still leaves the gig saved as a draft (the API creates it first).
         const savedAsDraft = res.status === 422 && publish;
-        setError(`${data.error ?? "Something went wrong. Please try again."}${savedAsDraft ? " Your gig was saved as a draft." : ""}`);
+        setError(`${data.error ?? "Something went wrong. Please try again."}${savedAsDraft ? ` Your ${t.noun} was saved as a draft.` : ""}`);
         return;
       }
       setResult({ kind: !publish ? "draft" : data.publish?.held ? "held" : "published", jobId: data.job.id, title: data.job.title });
@@ -122,9 +143,9 @@ export function PostGigForm({ canPublish }: { canPublish: boolean }) {
 
   if (result) {
     const copy = {
-      published: { title: "Your gig is live!", body: "Students nearby can see it on the job board and apply now." },
-      held: { title: "Your gig is being reviewed", body: "Something in your post needs a quick look from our safety team. It goes live once it’s approved." },
-      draft: { title: "Saved as a draft", body: "Your gig is saved but not visible to students yet." },
+      published: { title: t.live, body: "Students nearby can see it on the job board and apply now." },
+      held: { title: `Your ${t.noun} is being reviewed`, body: "Something in your post needs a quick look from our safety team. It goes live once it’s approved." },
+      draft: { title: "Saved as a draft", body: t.draftBody },
     }[result.kind];
     return (
       <Card>
@@ -133,8 +154,9 @@ export function PostGigForm({ canPublish }: { canPublish: boolean }) {
           <CardDescription>“{result.title}”. {copy.body}</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2">
-          {result.kind === "published" && <Link href={`/jobs/${result.jobId}`} className={buttonVariants()}>View your gig</Link>}
-          <Button variant="outline" onClick={() => location.reload()}>Post another gig</Button>
+          {result.kind === "published" && <Link href={`/jobs/${result.jobId}`} className={buttonVariants()}>View your {t.noun}</Link>}
+          {doneHref && <Link href={doneHref} className={buttonVariants({ variant: "outline" })}>Back to dashboard</Link>}
+          <Button variant="outline" onClick={() => location.reload()}>Post another {t.noun}</Button>
         </CardContent>
       </Card>
     );
@@ -144,12 +166,12 @@ export function PostGigForm({ canPublish }: { canPublish: boolean }) {
     <form onSubmit={submit} className="flex flex-col gap-6" noValidate>
       <Card>
         <CardHeader>
-          <CardTitle>What do you need help with?</CardTitle>
+          <CardTitle>{t.heading}</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="title">Title</Label>
-            <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={120} placeholder="e.g. Rake leaves in my backyard" aria-invalid={errors.title ? true : undefined} />
+            <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={120} placeholder={t.titlePlaceholder} aria-invalid={errors.title ? true : undefined} />
             <Errors list={errors.title} />
           </div>
           <div className="flex flex-col gap-1.5">
@@ -160,10 +182,10 @@ export function PostGigForm({ canPublish }: { canPublish: boolean }) {
               onChange={(e) => setDescription(e.target.value)}
               maxLength={5000}
               className="min-h-32"
-              placeholder="What’s the work, how long will it take, and is there anything they should bring or know?"
+              placeholder={t.descPlaceholder}
               aria-invalid={errors.description ? true : undefined}
             />
-            <span className="text-xs text-muted-foreground">Don’t include phone numbers, emails or your street address. Students contact you through RiseLocal.</span>
+            <span className="text-xs text-muted-foreground">{t.descHint}</span>
             <Errors list={errors.description} />
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -229,7 +251,7 @@ export function PostGigForm({ canPublish }: { canPublish: boolean }) {
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="schedule">Schedule</Label>
-            <select id="schedule" name="schedule" defaultValue="one-time" className={selectClass}>
+            <select id="schedule" name="schedule" defaultValue={t.defaultSchedule} className={selectClass}>
               <option value="">Flexible</option>
               {SCHEDULES.map((s) => <option key={s} value={s}>{labelize(s)}</option>)}
             </select>
@@ -245,12 +267,12 @@ export function PostGigForm({ canPublish }: { canPublish: boolean }) {
             </select>
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="positions">How many helpers?</Label>
+            <Label htmlFor="positions">{t.positions}</Label>
             <Input id="positions" name="positions" type="number" min={1} max={100} defaultValue={1} />
           </div>
           <label className="flex items-center gap-2 self-end pb-1.5 text-sm">
             <input type="checkbox" name="remote" className="size-4 accent-primary" />
-            Can be done remotely (e.g. online tutoring)
+            {t.remote}
           </label>
         </CardContent>
       </Card>
@@ -260,7 +282,7 @@ export function PostGigForm({ canPublish }: { canPublish: boolean }) {
           className={`rounded-lg border px-4 py-3 text-sm ${blocked ? "border-destructive/50 bg-destructive/5" : "border-amber-500/50 bg-amber-500/5"}`}
           role="status"
         >
-          <p className="font-medium">{blocked ? "This gig can’t be posted for teens" : "Heads up: this will be held for a safety review"}</p>
+          <p className="font-medium">{blocked ? `This ${t.noun} can’t be posted for teens` : "Heads up: this will be held for a safety review"}</p>
           <ul className="mt-1 list-disc pl-5 text-muted-foreground">
             {safety.flags.map((f) => <li key={f}>{FLAG_HELP[f]}</li>)}
           </ul>
@@ -271,12 +293,12 @@ export function PostGigForm({ canPublish }: { canPublish: boolean }) {
 
       <div className="flex flex-wrap items-center gap-2">
         <Button type="submit" name="intent" value="publish" size="lg" disabled={pending || blocked || !canPublish}>
-          {pending ? "Posting…" : "Publish gig"}
+          {pending ? "Posting…" : `Publish ${t.noun}`}
         </Button>
         <Button type="submit" name="intent" value="draft" size="lg" variant="outline" disabled={pending || blocked}>
           Save as draft
         </Button>
-        <span className="text-xs text-muted-foreground">Every gig is screened before students see it.</span>
+        <span className="text-xs text-muted-foreground">{t.screened}</span>
       </div>
     </form>
   );

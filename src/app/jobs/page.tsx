@@ -52,8 +52,10 @@ async function Board({ searchParams }: { searchParams: Promise<SearchParams> }) 
   const query = parsed.success ? parsed.data : boardQuerySchema.parse({});
 
   const viewer = await getCurrentUser();
-  // Admins moderate jobs on /review; the public board isn't part of their portal.
+  // Admins moderate jobs on /review and businesses manage theirs on /business;
+  // the public board isn't part of either portal.
   if (viewer?.role === "ADMIN") redirect("/review");
+  if (viewer?.role === "EMPLOYER") redirect("/business");
   const age = viewer?.role === "STUDENT" && viewer.dateOfBirth ? ageOn(viewer.dateOfBirth) : undefined;
   const result = await searchBoard(query, { age });
   const items = withEligibility(result.items, age);

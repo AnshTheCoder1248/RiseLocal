@@ -55,9 +55,8 @@ async function Gate() {
   }
   // Posting is for adults only (18+); students and any minor go back to the board.
   if (user.role === "STUDENT" || user.isMinor) redirect("/jobs");
-  if (user.role === "EMPLOYER") {
-    return <Notice title="Business posting is coming soon" body="This page is for neighborhood gigs. A posting page for businesses is on the way." />;
-  }
+  // Businesses post jobs from their own portal.
+  if (user.role === "EMPLOYER") redirect("/business/post");
   if (user.status !== "ACTIVE") {
     return <Notice title="Your account isn’t active yet" body="Finish activating your account before posting a gig." />;
   }

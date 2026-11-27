@@ -2,20 +2,26 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bookmark, FileText, Plus, Search, Send, ShieldCheck, UserRound } from "lucide-react";
+import { Bell, Bookmark, FileText, Inbox, LayoutDashboard, Plus, Search, Send, ShieldCheck, Sparkles, UserRound } from "lucide-react";
 import { cn } from "cn";
 
-const ICONS = { search: Search, bookmark: Bookmark, file: FileText, plus: Plus, user: UserRound, review: ShieldCheck, send: Send };
+const ICONS = { search: Search, bookmark: Bookmark, file: FileText, plus: Plus, user: UserRound, review: ShieldCheck, send: Send, bell: Bell, inbox: Inbox, dashboard: LayoutDashboard, sparkles: Sparkles };
 
-export type NavItem = { href: string; label: string; icon: keyof typeof ICONS };
+/** `badge`: an optional count shown after the label (e.g. unread notifications). */
+export type NavItem = { href: string; label: string; icon: keyof typeof ICONS; badge?: number; badgeLabel?: string };
 
 export function SidebarNav({ items }: { items: NavItem[] }) {
   const pathname = usePathname();
+  // The longest matching href wins, so /business/post highlights "Post a job", not "Dashboard".
+  const current = items
+    .map((i) => i.href)
+    .filter((h) => pathname === h || pathname.startsWith(`${h}/`))
+    .sort((a, b) => b.length - a.length)[0];
   return (
     <nav aria-label="Your actions" className="flex gap-1 overflow-x-auto px-4 py-2 md:flex-col md:px-3 md:py-6">
-      {items.map(({ href, label, icon }) => {
+      {items.map(({ href, label, icon, badge, badgeLabel = "new" }) => {
         const Icon = ICONS[icon];
-        const active = pathname === href || pathname.startsWith(`${href}/`);
+        const active = href === current;
         return (
           <Link
             key={href}
@@ -28,6 +34,12 @@ export function SidebarNav({ items }: { items: NavItem[] }) {
           >
             <Icon className="size-4" aria-hidden />
             {label}
+            {badge ? (
+              <span className="ml-auto min-w-5 rounded-full bg-primary px-1.5 text-center text-xs font-semibold leading-5 text-primary-foreground">
+                {badge > 99 ? "99+" : badge}
+                <span className="sr-only"> {badgeLabel}</span>
+              </span>
+            ) : null}
           </Link>
         );
       })}
