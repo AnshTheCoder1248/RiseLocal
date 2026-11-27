@@ -19,7 +19,7 @@ const NAV: Record<Role, NavItem[]> = {
     PROFILE,
   ],
   COMMUNITY: [
-    { href: "/jobs", label: "Browse jobs", icon: "search" },
+    { href: "/my-jobs", label: "My jobs", icon: "dashboard" },
     { href: "/post", label: "Post a gig", icon: "plus" },
     PROFILE,
   ],

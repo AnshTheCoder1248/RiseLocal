@@ -78,7 +78,7 @@ async function Gate() {
             : `New posters can have up to ${MAX_OPEN_GIGS_NEW_POSTER} open gigs at once. You have ${open} open.`}
         </p>
       )}
-      <PostGigForm canPublish={!atLimit} />
+      <PostGigForm canPublish={!atLimit} doneHref="/my-jobs" />
     </>
   );
 }

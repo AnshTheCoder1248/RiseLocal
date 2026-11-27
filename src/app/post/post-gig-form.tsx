@@ -13,7 +13,7 @@ import { labelize } from "@/lib/jobs/format";
 
 type PayType = "HOURLY" | "FIXED" | "VOLUNTEER";
 type FieldErrors = Partial<Record<string, string[]>>;
-type Result = { kind: "published" | "held" | "draft"; jobId: string; title: string };
+type Result = { kind: "published" | "held" | "draft" | "saved"; jobId: string; title: string };
 
 const FLAG_HELP: Record<SafetyFlag, string> = {
   pii_phone: "Remove phone numbers. Students message you through RiseLocal.",
@@ -64,12 +64,26 @@ const COPY = {
   },
 };
 
-export function PostGigForm({ canPublish, kind = "gig", doneHref }: { canPublish: boolean; kind?: keyof typeof COPY; doneHref?: string }) {
+/** An existing posting being edited: its id, current status and field values. */
+export type EditTarget = {
+  id: string;
+  status: string;
+  values: {
+    title: string; description: string; category: string; tags: string[]; payType: PayType; payMin: number | null; payMax: number | null;
+    minAge: number; schedule: string | null; remote: boolean; positions: number; startDate: string | null; areaLabel: string;
+  };
+};
+
+const dollars = (cents: number | null) => (cents == null ? "" : String(cents / 100));
+
+export function PostGigForm({ canPublish, kind = "gig", doneHref, edit }: { canPublish: boolean; kind?: keyof typeof COPY; doneHref?: string; edit?: EditTarget }) {
   const t = COPY[kind];
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [tags, setTags] = useState("");
-  const [payType, setPayType] = useState<PayType>("HOURLY");
+  const v = edit?.values;
+  const isDraft = !edit || edit.status === "DRAFT";
+  const [title, setTitle] = useState(v?.title ?? "");
+  const [description, setDescription] = useState(v?.description ?? "");
+  const [tags, setTags] = useState(v?.tags.join(", ") ?? "");
+  const [payType, setPayType] = useState<PayType>(v?.payType ?? "HOURLY");
   const [errors, setErrors] = useState<FieldErrors>({});
   const [error, setError] = useState<string>();
   const [pending, setPending] = useState(false);
@@ -117,23 +131,30 @@ export function PostGigForm({ canPublish, kind = "gig", doneHref }: { canPublish
       positions: Number(get("positions") || 1),
       startDate: startDate ? new Date(`${startDate}T09:00:00`).toISOString() : null,
       areaLabel: get("areaLabel"),
-      publish,
     };
 
     setPending(true);
     setErrors({});
     setError(undefined);
     try {
-      const res = await fetch("/api/jobs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      // New postings are created (and optionally published); edits update in place, and a draft can be published as it's saved.
+      const res = edit
+        ? await fetch(`/api/jobs/${edit.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...body, ...(publish && isDraft && { action: "publish" }) }) })
+        : await fetch("/api/jobs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...body, publish }) });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         setErrors(data.details?.fieldErrors ?? {});
         // A refused publish still leaves the gig saved as a draft (the API creates it first).
-        const savedAsDraft = res.status === 422 && publish;
+        const savedAsDraft = res.status === 422 && publish && !edit;
         setError(`${data.error ?? "Something went wrong. Please try again."}${savedAsDraft ? ` Your ${t.noun} was saved as a draft.` : ""}`);
         return;
       }
-      setResult({ kind: !publish ? "draft" : data.publish?.held ? "held" : "published", jobId: data.job.id, title: data.job.title });
+      if (edit) {
+        const job = data.job as { id: string; title: string; status: string; moderationHold: boolean };
+        setResult({ kind: job.moderationHold ? "held" : publish && job.status === "PUBLISHED" ? "published" : "saved", jobId: job.id, title: job.title });
+      } else {
+        setResult({ kind: !publish ? "draft" : data.publish?.held ? "held" : "published", jobId: data.job.id, title: data.job.title });
+      }
     } catch {
       setError("Couldn’t reach RiseLocal. Check your connection and try again.");
     } finally {
@@ -146,6 +167,7 @@ export function PostGigForm({ canPublish, kind = "gig", doneHref }: { canPublish
       published: { title: t.live, body: "Students nearby can see it on the job board and apply now." },
       held: { title: `Your ${t.noun} is being reviewed`, body: "Something in your post needs a quick look from our safety team. It goes live once it’s approved." },
       draft: { title: "Saved as a draft", body: t.draftBody },
+      saved: { title: "Changes saved", body: isDraft ? t.draftBody : "Students see the updated details now." },
     }[result.kind];
     return (
       <Card>
@@ -154,9 +176,9 @@ export function PostGigForm({ canPublish, kind = "gig", doneHref }: { canPublish
           <CardDescription>“{result.title}”. {copy.body}</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2">
-          {result.kind === "published" && <Link href={`/jobs/${result.jobId}`} className={buttonVariants()}>View your {t.noun}</Link>}
-          {doneHref && <Link href={doneHref} className={buttonVariants({ variant: "outline" })}>Back to dashboard</Link>}
-          <Button variant="outline" onClick={() => location.reload()}>Post another {t.noun}</Button>
+          {(result.kind === "published" || (result.kind === "saved" && !isDraft)) && <Link href={`/jobs/${result.jobId}`} className={buttonVariants()}>View your {t.noun}</Link>}
+          {doneHref && <Link href={doneHref} className={buttonVariants({ variant: "outline" })}>{kind === "job" ? "Back to dashboard" : "Go to My jobs"}</Link>}
+          {!edit && <Button variant="outline" onClick={() => location.reload()}>Post another {t.noun}</Button>}
         </CardContent>
       </Card>
     );
@@ -191,7 +213,7 @@ export function PostGigForm({ canPublish, kind = "gig", doneHref }: { canPublish
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="category">Category</Label>
-              <select id="category" name="category" defaultValue="other" className={selectClass}>
+              <select id="category" name="category" defaultValue={v?.category ?? "other"} className={selectClass}>
                 {CATEGORIES.map((c) => <option key={c} value={c}>{labelize(c)}</option>)}
               </select>
             </div>
@@ -225,12 +247,12 @@ export function PostGigForm({ canPublish, kind = "gig", doneHref }: { canPublish
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="payMin">{payType === "HOURLY" ? "Pay per hour ($)" : "Amount ($)"}</Label>
-                <Input id="payMin" name="payMin" type="number" inputMode="decimal" min={0} step="0.5" placeholder={payType === "HOURLY" ? "15" : "40"} aria-invalid={errors.payMin ? true : undefined} />
+                <Input id="payMin" name="payMin" type="number" inputMode="decimal" min={0} step="0.5" defaultValue={dollars(v?.payMin ?? null)} placeholder={payType === "HOURLY" ? "15" : "40"} aria-invalid={errors.payMin ? true : undefined} />
                 <Errors list={errors.payMin} />
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="payMax">Up to ($, optional)</Label>
-                <Input id="payMax" name="payMax" type="number" inputMode="decimal" min={0} step="0.5" placeholder="Leave blank for a set rate" aria-invalid={errors.payMax ? true : undefined} />
+                <Input id="payMax" name="payMax" type="number" inputMode="decimal" min={0} step="0.5" defaultValue={v && v.payMax !== v.payMin ? dollars(v.payMax) : ""} placeholder="Leave blank for a set rate" aria-invalid={errors.payMax ? true : undefined} />
                 <Errors list={errors.payMax} />
               </div>
             </div>
@@ -246,32 +268,32 @@ export function PostGigForm({ canPublish, kind = "gig", doneHref }: { canPublish
         <CardContent className="grid gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="areaLabel">Neighborhood or ZIP</Label>
-            <Input id="areaLabel" name="areaLabel" maxLength={80} placeholder="e.g. Maple Grove · 55311" aria-invalid={errors.areaLabel ? true : undefined} />
+            <Input id="areaLabel" name="areaLabel" maxLength={80} defaultValue={v?.areaLabel} placeholder="e.g. Maple Grove · 55311" aria-invalid={errors.areaLabel ? true : undefined} />
             <Errors list={errors.areaLabel} />
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="schedule">Schedule</Label>
-            <select id="schedule" name="schedule" defaultValue={t.defaultSchedule} className={selectClass}>
+            <select id="schedule" name="schedule" defaultValue={v ? (v.schedule ?? "") : t.defaultSchedule} className={selectClass}>
               <option value="">Flexible</option>
               {SCHEDULES.map((s) => <option key={s} value={s}>{labelize(s)}</option>)}
             </select>
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="startDate">Start date (optional)</Label>
-            <Input id="startDate" name="startDate" type="date" />
+            <Input id="startDate" name="startDate" type="date" defaultValue={v?.startDate?.slice(0, 10)} />
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="minAge">Minimum age</Label>
-            <select id="minAge" name="minAge" defaultValue="14" className={selectClass}>
+            <select id="minAge" name="minAge" defaultValue={String(v?.minAge ?? 14)} className={selectClass}>
               {[13, 14, 15, 16, 17, 18].map((a) => <option key={a} value={a}>{a}+</option>)}
             </select>
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="positions">{t.positions}</Label>
-            <Input id="positions" name="positions" type="number" min={1} max={100} defaultValue={1} />
+            <Input id="positions" name="positions" type="number" min={1} max={100} defaultValue={v?.positions ?? 1} />
           </div>
           <label className="flex items-center gap-2 self-end pb-1.5 text-sm">
-            <input type="checkbox" name="remote" className="size-4 accent-primary" />
+            <input type="checkbox" name="remote" defaultChecked={v?.remote} className="size-4 accent-primary" />
             {t.remote}
           </label>
         </CardContent>
@@ -292,12 +314,21 @@ export function PostGigForm({ canPublish, kind = "gig", doneHref }: { canPublish
       {error && <p className="text-sm text-destructive" role="alert">{error}</p>}
 
       <div className="flex flex-wrap items-center gap-2">
-        <Button type="submit" name="intent" value="publish" size="lg" disabled={pending || blocked || !canPublish}>
-          {pending ? "Posting…" : `Publish ${t.noun}`}
-        </Button>
-        <Button type="submit" name="intent" value="draft" size="lg" variant="outline" disabled={pending || blocked}>
-          Save as draft
-        </Button>
+        {edit && !isDraft ? (
+          // A live posting: saving re-runs the safety check if the wording changed.
+          <Button type="submit" name="intent" value="draft" size="lg" disabled={pending || blocked}>
+            {pending ? "Saving…" : "Save changes"}
+          </Button>
+        ) : (
+          <>
+            <Button type="submit" name="intent" value="publish" size="lg" disabled={pending || blocked || !canPublish}>
+              {pending ? (edit ? "Saving…" : "Posting…") : edit ? "Save and publish" : `Publish ${t.noun}`}
+            </Button>
+            <Button type="submit" name="intent" value="draft" size="lg" variant="outline" disabled={pending || blocked}>
+              {edit ? "Save draft" : "Save as draft"}
+            </Button>
+          </>
+        )}
         <span className="text-xs text-muted-foreground">{t.screened}</span>
       </div>
     </form>
