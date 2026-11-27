@@ -5,10 +5,10 @@ import { getCurrentUser } from "@/lib/auth/session";
 /** Who manages postings: businesses (jobs, with Scout) or community members (gigs). */
 export type PosterKind = "business" | "community";
 
-/** Where each kind of poster's pages live, and what they call a posting. Applicants and the stats dashboard are business-only. */
+/** Where each kind of poster's pages live, and what they call a posting. The stats dashboard is business-only. */
 export const POSTER = {
   business: { role: "EMPLOYER", home: "/business", applicants: "/business/applicants", post: "/business/post", noun: "job" },
-  community: { role: "COMMUNITY", home: "/my-jobs", post: "/post", noun: "gig" },
+  community: { role: "COMMUNITY", home: "/my-jobs", applicants: "/my-jobs/applicants", post: "/post", noun: "gig" },
 } as const;
 
 /** The signed-in poster of this kind (and their business, if any); anyone else is sent elsewhere. */

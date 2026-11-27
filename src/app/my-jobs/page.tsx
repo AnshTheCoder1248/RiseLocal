@@ -21,7 +21,7 @@ export default function MyJobsPage() {
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div className="flex flex-col gap-1">
           <h1 className="text-3xl font-semibold tracking-tight">My jobs</h1>
-          <p className="text-muted-foreground">The gigs you’ve posted. Edit one to change it, or remove it when it’s filled or no longer needed.</p>
+          <p className="text-muted-foreground">The gigs you’ve posted and who applied. Edit one to change it, or remove it when it’s filled or no longer needed.</p>
         </div>
         <Link href="/post" className={buttonVariants()}>Post a gig</Link>
       </header>
@@ -32,13 +32,15 @@ export default function MyJobsPage() {
   );
 }
 
-const STATUS: Partial<Record<JobStatus, { label: string; variant: "default" | "secondary" | "outline" }>> = {
-  PUBLISHED: { label: "Live", variant: "default" },
-  DRAFT: { label: "Draft", variant: "secondary" },
-  PAUSED: { label: "Paused", variant: "outline" },
-  FILLED: { label: "Filled", variant: "outline" },
-  EXPIRED: { label: "Expired", variant: "outline" },
+/** The status shown beside each gig's title: Open (taking applicants) or Filled, plus the in-between states. */
+const STATUS: Partial<Record<JobStatus, { label: string; className: string }>> = {
+  PUBLISHED: { label: "Open", className: "border-transparent bg-emerald-600 text-white dark:bg-emerald-500 dark:text-emerald-950" },
+  FILLED: { label: "Filled", className: "border-transparent bg-muted text-muted-foreground" },
+  DRAFT: { label: "Draft", className: "border-dashed bg-transparent text-muted-foreground" },
+  PAUSED: { label: "Paused", className: "bg-transparent text-muted-foreground" },
+  EXPIRED: { label: "Expired", className: "bg-transparent text-muted-foreground" },
 };
+const IN_REVIEW = { label: "In safety review", className: "border-amber-500/60 bg-amber-500/10 text-foreground" };
 
 /** Applications still waiting — those applicants are told when a gig is filled or deleted. */
 const OPEN: AppStatus[] = ["PENDING_GUARDIAN", "SENT", "VIEWED", "SHORTLISTED"];
@@ -56,6 +58,8 @@ async function Gigs() {
     select: {
       id: true, title: true, description: true, status: true, moderationHold: true, category: true, schedule: true,
       payType: true, payMin: true, payMax: true, areaLabel: true, remote: true, minAge: true, publishedAt: true, createdAt: true,
+      // Guardian-held applications (ages 13–15) aren't visible to posters until approved.
+      applications: { where: { status: { not: "PENDING_GUARDIAN" } }, select: { status: true } },
       _count: { select: { applications: { where: { status: { in: OPEN } } } } },
     },
   });
@@ -77,15 +81,19 @@ async function Gigs() {
   return (
     <ul className="grid gap-3">
       {gigs.map((g) => {
-        const status = g.moderationHold ? { label: "In safety review", variant: "outline" as const } : (STATUS[g.status] ?? { label: labelize(g.status.toLowerCase()), variant: "outline" as const });
+        const status = g.moderationHold ? IN_REVIEW : (STATUS[g.status] ?? { label: labelize(g.status.toLowerCase()), className: "bg-transparent text-muted-foreground" });
         const live = g.status === "PUBLISHED" && !g.moderationHold;
+        const applied = g.applications.length;
+        const fresh = g.applications.filter((a) => a.status === "SENT").length;
+        const hired = g.applications.filter((a) => a.status === "HIRED").length;
         return (
           <li key={g.id}>
             <Card>
               <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start">
                 <div className="flex min-w-0 flex-1 flex-col gap-1">
-                  <CardTitle className="text-lg">
+                  <CardTitle className="flex flex-wrap items-center gap-2 text-lg">
                     {live ? <Link href={`/jobs/${g.id}`} className="underline-offset-4 hover:underline">{g.title}</Link> : g.title}
+                    <Badge variant="outline" className={status.className}>{status.label}</Badge>
                   </CardTitle>
                   <CardDescription>
                     {g.remote ? "Remote" : g.areaLabel} · {g.publishedAt ? `Posted ${dateFmt(g.publishedAt)}` : `Created ${dateFmt(g.createdAt)}`}
@@ -102,13 +110,23 @@ async function Gigs() {
               </CardHeader>
               <CardContent className="flex flex-col gap-3 text-sm">
                 <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant={status.variant}>{status.label}</Badge>
                   <Badge variant="outline">{formatPay(g)}</Badge>
                   <Badge variant="outline">{labelize(g.category)}</Badge>
                   {g.schedule && <Badge variant="outline">{labelize(g.schedule)}</Badge>}
                   <Badge variant="outline">Ages {g.minAge}+</Badge>
                 </div>
                 <p className="line-clamp-2 leading-relaxed text-muted-foreground">{g.description}</p>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t pt-3">
+                  {applied ? (
+                    <Link href={`/my-jobs/applicants?job=${g.id}`} className="font-medium underline-offset-4 hover:underline">
+                      {applied} {applied === 1 ? "applicant" : "applicants"}
+                    </Link>
+                  ) : (
+                    <span className="text-muted-foreground">No applicants yet</span>
+                  )}
+                  {fresh > 0 && <Badge>{fresh} new</Badge>}
+                  {hired > 0 && <span className="text-muted-foreground">{hired} hired</span>}
+                </div>
               </CardContent>
             </Card>
           </li>

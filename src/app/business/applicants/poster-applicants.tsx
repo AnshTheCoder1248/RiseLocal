@@ -8,11 +8,11 @@ import { db } from "@/lib/db";
 import { ageBand, ageOn } from "@/lib/auth/age";
 import { labelize } from "@/lib/jobs/format";
 import type { AppStatus } from "@/generated/prisma/client";
-import { businessJobsWhere, POSTER, requirePoster } from "../business-user";
+import { businessJobsWhere, POSTER, requirePoster, type PosterKind } from "../business-user";
 import { ApplicantActions } from "./applicant-actions";
 import { MarkViewed } from "./mark-viewed";
 
-/** Applicants to a business's jobs, with filters and hiring actions. */
+/** Applicants to a poster's jobs or gigs, with filters and hiring actions. Shared by businesses and community members. */
 
 const FILTERS = [
   { value: "all", label: "All" },
@@ -35,7 +35,7 @@ const STATUS: Record<AppStatus, { label: string; variant: "default" | "secondary
 const dateFmt = (d: Date) => d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 
-export async function PosterApplicants({ kind, searchParams }: { kind: "business"; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+export async function PosterApplicants({ kind, searchParams }: { kind: PosterKind; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   await connection();
   const cfg = POSTER[kind];
   const { user, org } = await requirePoster(kind, cfg.applicants);

@@ -20,6 +20,7 @@ const NAV: Record<Role, NavItem[]> = {
   ],
   COMMUNITY: [
     { href: "/my-jobs", label: "My jobs", icon: "dashboard" },
+    { href: "/my-jobs/applicants", label: "Applicants", icon: "users" },
     { href: "/post", label: "Post a gig", icon: "plus" },
     PROFILE,
   ],
@@ -50,11 +51,12 @@ async function Sidebar() {
   if (!user) return null;
   // Counts shown next to a tab: unread notifications for students, pending Scout suggestions for businesses.
   const business = user.role === "EMPLOYER";
+  const poster = business || user.role === "COMMUNITY";
   const [unread, suggestions, newApplicants] = await Promise.all([
     user.role === "STUDENT" ? db.notification.count({ where: { userId: user.id, readAt: null } }) : 0,
     business && user.orgId ? db.agentDraft.count({ where: { orgId: user.orgId, reviewState: "pending" } }) : 0,
     // Applications the business hasn't opened yet (they turn VIEWED on the Applicants page).
-    business
+    poster
       ? db.application.count({ where: { status: "SENT", job: { OR: [{ postedById: user.id }, ...(user.orgId ? [{ orgId: user.orgId }] : [])] } } })
       : 0,
   ]);
@@ -62,6 +64,7 @@ async function Sidebar() {
     "/notifications": [unread, "unread"],
     "/business/suggestions": [suggestions, "pending"],
     "/business/applicants": [newApplicants, "new"],
+    "/my-jobs/applicants": [newApplicants, "new"],
   };
   const items = NAV[user.role].map((i) => (badges[i.href]?.[0] ? { ...i, badge: badges[i.href][0], badgeLabel: badges[i.href][1] } : i));
   return (
